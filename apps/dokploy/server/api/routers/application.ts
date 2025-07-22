@@ -28,6 +28,11 @@ import {
 	writeConfigRemote,
 	// uploadFileSchema
 } from "@dokploy/server";
+import {
+	createApplicationContext,
+	EnvVariableGenerator,
+} from "@dokploy/server/utils/env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -359,20 +364,30 @@ export const applicationRouter = createTRPCRouter({
 			}
 
 			try {
+				// Evaluate user-defined environment variables
 				const evaluatedVars = prepareEnvironmentVariables(
 					application.env,
 					application.project.env,
 				);
+
+				// Generate dynamic environment variables
+				const domains = await findDomainsByApplicationId(input.applicationId);
+				const context = createApplicationContext(application, domains);
+				const generator = new EnvVariableGenerator(context);
+				const generatedVars = generator.generateAll();
+
 				return {
 					rawEnvironment: application.env || "",
 					projectEnvironment: application.project.env || "",
 					evaluatedEnvironment: evaluatedVars,
+					generatedVariables: generatedVars,
 				};
 			} catch (error) {
 				return {
 					rawEnvironment: application.env || "",
 					projectEnvironment: application.project.env || "",
 					evaluatedEnvironment: {},
+					generatedVariables: [],
 					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
 				};
 			}
