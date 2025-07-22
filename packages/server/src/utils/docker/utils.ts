@@ -263,20 +263,63 @@ export const prepareEnvironmentVariables = (
 	const projectVars = parse(projectEnv ?? "");
 	const serviceVars = parse(serviceEnv ?? "");
 
-	const resolvedVars = Object.entries(serviceVars).map(([key, value]) => {
-		let resolvedValue = value;
-		if (projectVars) {
-			resolvedValue = value.replace(/\$\{\{project\.(.*?)\}\}/g, (_, ref) => {
+	// Function to resolve variables with circular dependency detection
+	const resolveVariables = (vars: Record<string, string>) => {
+		const resolvedVars: Record<string, string> = {};
+		const resolutionStack: string[] = [];
+
+		const resolveValue = (key: string, value: string): string => {
+			// Check for circular dependency
+			if (resolutionStack.includes(key)) {
+				throw new Error("Circular dependency detected in environment variables");
+			}
+
+			// If already resolved, return it
+			if (resolvedVars[key] !== undefined) {
+				return resolvedVars[key];
+			}
+
+			resolutionStack.push(key);
+
+			let resolvedValue = value;
+
+			// Replace project variables first (existing functionality)
+			resolvedValue = resolvedValue.replace(/\$\{\{project\.(.*?)\}\}/g, (_, ref) => {
 				if (projectVars[ref] !== undefined) {
 					return projectVars[ref];
 				}
 				throw new Error(`Invalid project environment variable: project.${ref}`);
 			});
-		}
-		return `${key}=${resolvedValue}`;
-	});
 
-	return resolvedVars;
+			// Replace same-scope variables (new functionality)
+			resolvedValue = resolvedValue.replace(/\$\{\{([^.}]+)\}\}/g, (_, ref) => {
+				// First try to find in service scope
+				if (vars[ref] !== undefined) {
+					return resolveValue(ref, vars[ref]);
+				}
+				// Fallback to project scope if not found in service scope
+				if (projectVars[ref] !== undefined) {
+					return projectVars[ref];
+				}
+				throw new Error(`Invalid environment variable: ${ref}`);
+			});
+
+			resolutionStack.pop();
+			resolvedVars[key] = resolvedValue;
+			return resolvedValue;
+		};
+
+		// Resolve all variables
+		for (const [key, value] of Object.entries(vars)) {
+			resolveValue(key, value);
+		}
+
+		return resolvedVars;
+	};
+
+	const resolved = resolveVariables(serviceVars);
+
+	return Object.entries(resolved).map(([key, value]) => `${key}=${value}`);
 };
 
 export const parseEnvironmentKeyValuePair = (
