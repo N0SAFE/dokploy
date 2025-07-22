@@ -9,6 +9,7 @@ import {
 	getApplicationStats,
 	IS_CLOUD,
 	mechanizeDockerContainer,
+	prepareEnvironmentVariables,
 	readConfig,
 	readRemoteConfig,
 	removeDeployments,
@@ -343,6 +344,38 @@ export const applicationRouter = createTRPCRouter({
 				buildArgs: input.buildArgs,
 			});
 			return true;
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiSaveEnvironmentVariables.pick({ applicationId: true }))
+		.query(async ({ input, ctx }) => {
+			const application = await findApplicationById(input.applicationId);
+			if (
+				application.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this environment",
+				});
+			}
+
+			try {
+				const evaluatedVars = prepareEnvironmentVariables(
+					application.env,
+					application.project.env,
+				);
+				return {
+					rawEnvironment: application.env || "",
+					projectEnvironment: application.project.env || "",
+					evaluatedEnvironment: evaluatedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: application.env || "",
+					projectEnvironment: application.project.env || "",
+					evaluatedEnvironment: {},
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
+			}
 		}),
 	saveBuildType: protectedProcedure
 		.input(apiSaveBuildType)

@@ -28,6 +28,7 @@ import {
 	findRedisById,
 	findUserById,
 	IS_CLOUD,
+	prepareEnvironmentVariables,
 	updateProjectById,
 } from "@dokploy/server";
 import { TRPCError } from "@trpc/server";
@@ -283,6 +284,36 @@ export const projectRouter = createTRPCRouter({
 				return project;
 			} catch (error) {
 				throw error;
+			}
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiFindOneProject)
+		.query(async ({ input, ctx }) => {
+			const project = await findProjectById(input.projectId);
+			if (project.organizationId !== ctx.session.activeOrganizationId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this project environment",
+				});
+			}
+
+			try {
+				// For project-level evaluation, we only resolve variables within the project scope
+				// since there's no "parent" scope for projects
+				const evaluatedVars = prepareEnvironmentVariables(
+					project.env,
+					null, // No parent environment for projects
+				);
+				return {
+					rawEnvironment: project.env || "",
+					evaluatedEnvironment: evaluatedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: project.env || "",
+					evaluatedEnvironment: {},
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
 			}
 		}),
 	duplicate: protectedProcedure

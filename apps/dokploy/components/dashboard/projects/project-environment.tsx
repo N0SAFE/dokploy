@@ -26,6 +26,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { api } from "@/utils/api";
+import { ShowEvaluatedProjectEnvironment } from "./show-evaluated-project-env";
 
 const updateProjectSchema = z.object({
 	env: z.string().optional(),
@@ -147,6 +148,7 @@ PORT=3000
 							</form>
 						</Form>
 					</div>
+					<ShowEvaluatedProjectEnvironment projectId={projectId} />
 				</div>
 			</DialogContent>
 		</Dialog>
