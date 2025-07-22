@@ -1,38 +1,35 @@
 /**
  * Enhanced Environment Variable Generation System
- * 
+ *
  * This module provides dynamic generation of environment variables for Dokploy
  * projects, applications, and services with comprehensive context awareness.
  */
 
-// Core classes and types
-export {
-	EnvVariableGenerator,
-	type EnvGenerationContext,
-	type GeneratedEnvVar,
-	prepareEnhancedEnvironmentVariables
-} from './index';
-
+// Re-export types from builders for convenience
+export type { ApplicationNested } from "../builders";
+export type { ComposeNested } from "../builders/compose";
 // Helper functions
 export {
 	createApplicationContext,
 	createComposeContext,
-	createProjectContext,
 	createDatabaseContext,
+	createProjectContext,
+	generateConnectionUrls,
 	toDockerEnvArray,
 	toEnvFileFormat,
-	generateConnectionUrls
-} from './helpers';
-
+} from "./helpers";
+// Core classes and types
+export {
+	type EnvGenerationContext,
+	EnvVariableGenerator,
+	type GeneratedEnvVar,
+	prepareEnhancedEnvironmentVariables,
+} from "./index";
 // Integration functions (main API)
 export {
+	generateProjectEnvironmentVariables,
+	getQuickReferenceVariables,
 	prepareApplicationEnvironmentVariables,
 	prepareComposeEnvironmentVariables,
 	prepareDatabaseEnvironmentVariables,
-	generateProjectEnvironmentVariables,
-	getQuickReferenceVariables
-} from './integration';
-
-// Re-export types from builders for convenience
-export type { ApplicationNested } from '../builders';
-export type { ComposeNested } from '../builders/compose';
+} from "./integration";

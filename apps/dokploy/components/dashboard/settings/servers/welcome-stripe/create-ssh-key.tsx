@@ -1,12 +1,11 @@
-import { CodeEditor } from "@/components/shared/code-editor";
-import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/utils/api";
 import copy from "copy-to-clipboard";
-import { ExternalLinkIcon, Loader2 } from "lucide-react";
-import { CopyIcon } from "lucide-react";
+import { CopyIcon, ExternalLinkIcon, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { CodeEditor } from "@/components/shared/code-editor";
+import { Card, CardContent } from "@/components/ui/card";
+import { api } from "@/utils/api";
 
 export const CreateSSHKey = () => {
 	const { data, refetch } = api.sshKey.all.useQuery();

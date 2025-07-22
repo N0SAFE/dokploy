@@ -271,7 +271,9 @@ export const prepareEnvironmentVariables = (
 		const resolveValue = (key: string, value: string): string => {
 			// Check for circular dependency
 			if (resolutionStack.includes(key)) {
-				throw new Error("Circular dependency detected in environment variables");
+				throw new Error(
+					"Circular dependency detected in environment variables",
+				);
 			}
 
 			// If already resolved, return it
@@ -284,12 +286,17 @@ export const prepareEnvironmentVariables = (
 			let resolvedValue = value;
 
 			// Replace project variables first (existing functionality)
-			resolvedValue = resolvedValue.replace(/\$\{\{project\.(.*?)\}\}/g, (_, ref) => {
-				if (projectVars[ref] !== undefined) {
-					return projectVars[ref];
-				}
-				throw new Error(`Invalid project environment variable: project.${ref}`);
-			});
+			resolvedValue = resolvedValue.replace(
+				/\$\{\{project\.(.*?)\}\}/g,
+				(_, ref) => {
+					if (projectVars[ref] !== undefined) {
+						return projectVars[ref];
+					}
+					throw new Error(
+						`Invalid project environment variable: project.${ref}`,
+					);
+				},
+			);
 
 			// Replace same-scope variables (new functionality)
 			resolvedValue = resolvedValue.replace(/\$\{\{([^.}]+)\}\}/g, (_, ref) => {

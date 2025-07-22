@@ -226,7 +226,7 @@ PROJECT_PORT=\${{project.PORT}}
 		expect(resolved).toEqual([
 			"DATABASE_URL=service_database",
 			"API_URL=service_database",
-			"SERVER_PORT=8080", 
+			"SERVER_PORT=8080",
 			"PROJECT_PORT=8080",
 		]);
 	});
@@ -259,7 +259,7 @@ UNDEFINED_VAR=\${{NONEXISTENT}}
 `;
 
 		expect(() => prepareEnvironmentVariables(serviceEnv, projectEnv)).toThrow(
-			"Invalid environment variable: NONEXISTENT"
+			"Invalid environment variable: NONEXISTENT",
 		);
 	});
 
@@ -270,7 +270,7 @@ VAR_B=\${{VAR_A}}
 `;
 
 		expect(() => prepareEnvironmentVariables(serviceEnv, null)).toThrow(
-			"Circular dependency detected in environment variables"
+			"Circular dependency detected in environment variables",
 		);
 	});
 

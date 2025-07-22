@@ -6,8 +6,8 @@ import {
 	generateFileMounts,
 	generateVolumeMounts,
 } from "../docker/utils";
-import { getRemoteDocker } from "../servers/remote-docker";
 import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
+import { getRemoteDocker } from "../servers/remote-docker";
 
 export type MongoNested = InferResultType<
 	"mongo",
@@ -103,8 +103,8 @@ ${command ?? "wait $MONGOD_PID"}`;
 		"mongo",
 		{
 			includeGenerated: true,
-			categories: ["service", "network", "system"]
-		}
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

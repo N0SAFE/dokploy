@@ -6,8 +6,8 @@ import {
 	generateFileMounts,
 	generateVolumeMounts,
 } from "../docker/utils";
-import { getRemoteDocker } from "../servers/remote-docker";
 import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
+import { getRemoteDocker } from "../servers/remote-docker";
 
 export type PostgresNested = InferResultType<
 	"postgres",
@@ -55,8 +55,8 @@ export const buildPostgres = async (postgres: PostgresNested) => {
 		"postgres",
 		{
 			includeGenerated: true,
-			categories: ["service", "network", "system"]
-		}
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

@@ -1,3 +1,5 @@
+import { LockKeyhole, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { DialogAction } from "@/components/shared/dialog-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +10,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { api } from "@/utils/api";
-import { LockKeyhole, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { HandleSecurity } from "./handle-security";
 
 interface Props {
