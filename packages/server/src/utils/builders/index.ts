@@ -8,8 +8,8 @@ import {
 	generateConfigContainer,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
+import { prepareApplicationEnvironmentVariables } from "../env-generator/integration";
 import { getRemoteDocker } from "../servers/remote-docker";
 import { buildCustomDocker, getDockerCommand } from "./docker-file";
 import { buildHeroku, getHerokuCommand } from "./heroku";
@@ -146,9 +146,12 @@ export const mechanizeDockerContainer = async (
 
 	const bindsMount = generateBindMounts(mounts);
 	const filesMount = generateFileMounts(appName, application);
-	const envVariables = prepareEnvironmentVariables(
-		env,
-		application.project.env,
+	const envVariables = await prepareApplicationEnvironmentVariables(
+		application,
+		{
+			includeGenerated: true,
+			categories: ["project", "application", "domain", "network", "system"]
+		}
 	);
 
 	const image = getImageName(application);

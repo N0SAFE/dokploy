@@ -5,9 +5,9 @@ import {
 	generateBindMounts,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
 import { getRemoteDocker } from "../servers/remote-docker";
+import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
 
 export type PostgresNested = InferResultType<
 	"postgres",
@@ -39,9 +39,24 @@ export const buildPostgres = async (postgres: PostgresNested) => {
 		cpuLimit,
 		cpuReservation,
 	});
-	const envVariables = prepareEnvironmentVariables(
-		defaultPostgresEnv,
-		postgres.project.env,
+	const envVariables = prepareDatabaseEnvironmentVariables(
+		{
+			id: postgres.postgresId,
+			name: postgres.name,
+			appName: postgres.appName,
+			env: defaultPostgresEnv,
+			databaseName,
+		},
+		{
+			projectId: postgres.project.projectId,
+			name: postgres.project.name,
+			env: postgres.project.env,
+		},
+		"postgres",
+		{
+			includeGenerated: true,
+			categories: ["service", "network", "system"]
+		}
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

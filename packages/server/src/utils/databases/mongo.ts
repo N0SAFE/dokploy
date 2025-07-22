@@ -5,9 +5,9 @@ import {
 	generateBindMounts,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
 import { getRemoteDocker } from "../servers/remote-docker";
+import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
 
 export type MongoNested = InferResultType<
 	"mongo",
@@ -88,9 +88,23 @@ ${command ?? "wait $MONGOD_PID"}`;
 		cpuReservation,
 	});
 
-	const envVariables = prepareEnvironmentVariables(
-		defaultMongoEnv,
-		mongo.project.env,
+	const envVariables = prepareDatabaseEnvironmentVariables(
+		{
+			id: mongo.mongoId,
+			name: mongo.name,
+			appName: mongo.appName,
+			env: defaultMongoEnv,
+		},
+		{
+			projectId: mongo.project.projectId,
+			name: mongo.project.name,
+			env: mongo.project.env,
+		},
+		"mongo",
+		{
+			includeGenerated: true,
+			categories: ["service", "network", "system"]
+		}
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);
