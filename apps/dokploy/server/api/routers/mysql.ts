@@ -8,6 +8,7 @@ import {
 	findMySqlById,
 	findProjectById,
 	IS_CLOUD,
+	prepareEnvironmentVariables,
 	rebuildDatabase,
 	removeMySqlById,
 	removeService,
@@ -17,6 +18,11 @@ import {
 	stopServiceRemote,
 	updateMySqlById,
 } from "@dokploy/server";
+import {
+	createApplicationContext,
+	createDetailedServicesFromProject,
+	EnvVariableGenerator,
+} from "@dokploy/server/utils/env-generator/env-generator";
 import { TRPCError } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
 import { eq } from "drizzle-orm";
@@ -393,5 +399,60 @@ export const mysqlRouter = createTRPCRouter({
 			await rebuildDatabase(mysql.mysqlId, "mysql");
 
 			return true;
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiSaveEnvironmentVariablesMySql.pick({ mysqlId: true }).extend({
+			env: z.string().optional(),
+			projectEnv: z.string().optional(),
+		}))
+		.query(async ({ input, ctx }) => {
+			const mysql = await findMySqlById(input.mysqlId);
+			if (
+				mysql.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this environment",
+				});
+			}
+
+			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : mysql.env;
+				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : mysql.project.env;
+
+				// Get full project with all services for comprehensive service variables
+				const fullProject = await findProjectById(mysql.projectId);
+				
+				// Create context for this mysql service
+				const context = createApplicationContext(mysql as any, []); // No domains for mysql
+				// Add detailed services to context
+				context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+				
+				const generator = new EnvVariableGenerator(context);
+				const generatedVars = generator.generateAll();
+
+				// Evaluate user-defined environment variables with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					projectEnvToEvaluate,
+					generatedVars,
+				);
+
+				return {
+					rawEnvironment: envToEvaluate || "",
+					projectEnvironment: projectEnvToEvaluate || "",
+					evaluatedEnvironment: evaluatedVars,
+					generatedVariables: generatedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: input.env !== undefined ? input.env : mysql.env || "",
+					projectEnvironment: input.projectEnv !== undefined ? input.projectEnv : mysql.project.env || "",
+					evaluatedEnvironment: {},
+					generatedVariables: [],
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
+			}
 		}),
 });

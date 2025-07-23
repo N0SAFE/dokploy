@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CodeEditor } from "@/components/shared/code-editor";
+import { ShowEvaluatedEnvironment } from "@/components/dashboard/shared/show-evaluated-environment";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -193,6 +194,12 @@ PORT=3000
 					</Form>
 				</CardContent>
 			</Card>
+			<ShowEvaluatedEnvironment 
+				serviceId={id} 
+				serviceType={type}
+				env={currentEnvironment}
+				projectEnv={data?.project?.env}
+			/>
 		</div>
 	);
 };

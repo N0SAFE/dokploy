@@ -19,6 +19,7 @@ import {
 	getComposeContainer,
 	IS_CLOUD,
 	loadServices,
+	prepareEnvironmentVariables,
 	randomizeComposeFile,
 	randomizeIsolatedDeploymentComposeFile,
 	removeCompose,
@@ -29,6 +30,11 @@ import {
 	stopCompose,
 	updateCompose,
 } from "@dokploy/server";
+import {
+	createApplicationContext,
+	createDetailedServicesFromProject,
+	EnvVariableGenerator,
+} from "@dokploy/server/utils/env-generator/env-generator";
 import {
 	type CompleteTemplate,
 	fetchTemplateFiles,
@@ -861,6 +867,63 @@ export const composeRouter = createTRPCRouter({
 					code: "BAD_REQUEST",
 					message: `Error importing template: ${error instanceof Error ? error.message : error}`,
 				});
+			}
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiUpdateCompose.pick({ composeId: true }).extend({
+			env: z.string().optional(),
+			projectEnv: z.string().optional(),
+		}))
+		.query(async ({ input, ctx }) => {
+			const compose = await findComposeById(input.composeId);
+			if (
+				compose.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this environment",
+				});
+			}
+
+			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : compose.env;
+				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : compose.project.env;
+
+				// Generate dynamic environment variables first so they can be used in resolution
+				const domains = await findDomainsByComposeId(input.composeId);
+				
+				// Get full project with all services for comprehensive service variables
+				const fullProject = await findProjectById(compose.projectId);
+				
+				const context = createApplicationContext(compose as any, domains);
+				// Add detailed services to context
+				context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+				
+				const generator = new EnvVariableGenerator(context);
+				const generatedVars = generator.generateAll();
+
+				// Evaluate user-defined environment variables with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					projectEnvToEvaluate,
+					generatedVars,
+				);
+
+				return {
+					rawEnvironment: envToEvaluate || "",
+					projectEnvironment: projectEnvToEvaluate || "",
+					evaluatedEnvironment: evaluatedVars,
+					generatedVariables: generatedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: input.env !== undefined ? input.env : compose.env || "",
+					projectEnvironment: input.projectEnv !== undefined ? input.projectEnv : compose.project.env || "",
+					evaluatedEnvironment: {},
+					generatedVariables: [],
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
 			}
 		}),
 });
