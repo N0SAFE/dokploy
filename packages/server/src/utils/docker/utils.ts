@@ -259,9 +259,18 @@ export const removeService = async (
 export const prepareEnvironmentVariables = (
 	serviceEnv: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
 	const projectVars = parse(projectEnv ?? "");
 	const serviceVars = parse(serviceEnv ?? "");
+	
+	// Convert generated variables to a lookup object
+	const generatedVarsLookup: Record<string, string> = {};
+	if (generatedVars) {
+		for (const variable of generatedVars) {
+			generatedVarsLookup[variable.key] = variable.value;
+		}
+	}
 
 	// Function to resolve variables with circular dependency detection
 	const resolveVariables = (vars: Record<string, string>) => {
@@ -298,15 +307,19 @@ export const prepareEnvironmentVariables = (
 				},
 			);
 
-			// Replace same-scope variables (new functionality)
+			// Replace same-scope variables (enhanced functionality)
 			resolvedValue = resolvedValue.replace(/\$\{\{([^.}]+)\}\}/g, (_, ref) => {
 				// First try to find in service scope
 				if (vars[ref] !== undefined) {
 					return resolveValue(ref, vars[ref]);
 				}
-				// Fallback to project scope if not found in service scope
+				// Second, try project scope if not found in service scope
 				if (projectVars[ref] !== undefined) {
 					return projectVars[ref];
+				}
+				// Third, try generated variables as fallback
+				if (generatedVarsLookup[ref] !== undefined) {
+					return generatedVarsLookup[ref];
 				}
 				throw new Error(`Invalid environment variable: ${ref}`);
 			});
@@ -343,8 +356,9 @@ export const parseEnvironmentKeyValuePair = (
 export const getEnviromentVariablesObject = (
 	input: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
-	const envs = prepareEnvironmentVariables(input, projectEnv);
+	const envs = prepareEnvironmentVariables(input, projectEnv, generatedVars);
 
 	const jsonObject: Record<string, string> = {};
 

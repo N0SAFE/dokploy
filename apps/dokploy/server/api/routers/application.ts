@@ -371,17 +371,18 @@ export const applicationRouter = createTRPCRouter({
 				const envToEvaluate = input.env !== undefined ? input.env : application.env;
 				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : application.project.env;
 
-				// Evaluate user-defined environment variables
-				const evaluatedVars = prepareEnvironmentVariables(
-					envToEvaluate,
-					projectEnvToEvaluate,
-				);
-
-				// Generate dynamic environment variables
+				// Generate dynamic environment variables first so they can be used in resolution
 				const domains = await findDomainsByApplicationId(input.applicationId);
 				const context = createApplicationContext(application, domains);
 				const generator = new EnvVariableGenerator(context);
 				const generatedVars = generator.generateAll();
+
+				// Evaluate user-defined environment variables with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					projectEnvToEvaluate,
+					generatedVars,
+				);
 
 				return {
 					rawEnvironment: envToEvaluate || "",

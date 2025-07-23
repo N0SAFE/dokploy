@@ -308,14 +308,7 @@ export const projectRouter = createTRPCRouter({
 				// Use provided env vars or fall back to database values
 				const envToEvaluate = input.env !== undefined ? input.env : project.env;
 
-				// For project-level evaluation, we only resolve variables within the project scope
-				// since there's no "parent" scope for projects
-				const evaluatedVars = prepareEnvironmentVariables(
-					envToEvaluate,
-					null, // No parent environment for projects
-				);
-
-				// Generate dynamic environment variables for the project
+				// Generate dynamic environment variables for the project first
 				// Get project applications and services for context
 				const allApplications = await db.query.applications.findMany({
 					where: eq(applications.projectId, input.projectId),
@@ -410,6 +403,14 @@ export const projectRouter = createTRPCRouter({
 
 				const generator = new EnvVariableGenerator(context);
 				const generatedVars = generator.generateAll();
+
+				// For project-level evaluation, resolve variables within the project scope
+				// with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					null, // No parent environment for projects
+					generatedVars,
+				);
 
 				return {
 					rawEnvironment: envToEvaluate || "",
