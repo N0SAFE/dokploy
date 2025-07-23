@@ -1,5 +1,81 @@
-node_modules
+# Git
 .git
 .gitignore
+
+# Documentation
+README.md
+DOCKER_SETUP.md
 *.md
-dist
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Development files
+.env.development
+.env.local
+.env.example
+*.env.example
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+__test__
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
+.nyc_output
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Scripts
+docker-manager.sh
+docker-manager.bat
+
+# Temporary files
+tmp/
+temp/
+
+# Database files
+*.sqlite
+*.db
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Other
+.eslintcache
+.stylelintcache
