@@ -11,17 +11,20 @@ interface Props {
 	applicationId: string;
 	env?: string;
 	projectEnv?: string;
+	previewEnv?: string;
 }
 
-export const ShowEvaluatedEnvironment = ({ applicationId, env, projectEnv }: Props) => {
+export const ShowEvaluatedEnvironment = ({ applicationId, env, projectEnv, previewEnv }: Props) => {
 	const [showValues, setShowValues] = useState(false);
 	const [showGenerated, setShowGenerated] = useState(false);
+	const [showPreviews, setShowPreviews] = useState(false);
 
 	const { data, error, isLoading } = api.application.evaluateEnvironmentVariables.useQuery(
 		{ 
 			applicationId,
 			...(env !== undefined && { env }),
 			...(projectEnv !== undefined && { projectEnv }),
+			...(previewEnv !== undefined && { previewEnv }),
 		},
 		{ enabled: !!applicationId }
 	);
@@ -60,9 +63,23 @@ export const ShowEvaluatedEnvironment = ({ applicationId, env, projectEnv }: Pro
 	const hasError = data?.error;
 	const evaluatedCount = Object.keys(data?.evaluatedEnvironment || {}).length;
 	const generatedCount = data?.generatedVariables?.length || 0;
+	const previewEvaluatedCount = Object.keys(data?.previewEvaluatedEnvironment || {}).length;
+	const previewGeneratedCount = data?.previewGeneratedVariables?.length || 0;
 
 	// Convert evaluated environment to display format
 	const evaluatedEnvString = Object.entries(data?.evaluatedEnvironment || {})
+		.map(([key, value]) => {
+			if (showValues) {
+				return `${key}=${value}`;
+			} else {
+				// Mask the values for security
+				return `${key}=${'•'.repeat(Math.min(8, String(value).length))}`;
+			}
+		})
+		.join('\n');
+
+	// Convert preview evaluated environment to display format
+	const previewEvaluatedEnvString = Object.entries(data?.previewEvaluatedEnvironment || {})
 		.map(([key, value]) => {
 			if (showValues) {
 				return `${key}=${value}`;
@@ -231,6 +248,86 @@ export const ShowEvaluatedEnvironment = ({ applicationId, env, projectEnv }: Pro
 					</Collapsible>
 				)}
 
+				{/* Preview Deployment Variables Section */}
+				{(previewEvaluatedCount > 0 || previewGeneratedCount > 0) && (
+					<Collapsible open={showPreviews} onOpenChange={setShowPreviews}>
+						<CollapsibleTrigger asChild>
+							<Button variant="ghost" className="w-full justify-between p-0">
+								<div className="flex items-center gap-2">
+									<Info className="h-4 w-4" />
+									<span className="text-sm font-medium">
+										Preview Deployment Variables ({previewEvaluatedCount + previewGeneratedCount})
+									</span>
+								</div>
+								{showPreviews ? (
+									<ChevronDown className="h-4 w-4" />
+								) : (
+									<ChevronRight className="h-4 w-4" />
+								)}
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent className="space-y-3 mt-3">
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertDescription>
+									These variables are available specifically for preview deployments. Preview deployments allow you to test changes from different branches with isolated environments and cross-service dependencies.
+								</AlertDescription>
+							</Alert>
+							
+							{/* Preview Evaluated Environment Variables */}
+							{previewEvaluatedCount > 0 && (
+								<div>
+									<div className="mb-2 text-sm font-medium">Preview Environment Variables:</div>
+									<pre className="bg-muted p-3 rounded-md text-sm min-h-[100px] overflow-auto">
+										{previewEvaluatedEnvString || "No preview environment variables to display"}
+									</pre>
+									{!showValues && previewEvaluatedCount > 0 && (
+										<p className="text-xs text-muted-foreground mt-2">
+											Values are hidden for security. Click "Show Values" to reveal them.
+										</p>
+									)}
+								</div>
+							)}
+
+							{/* Preview Generated Variables */}
+							{previewGeneratedCount > 0 && (
+								<div>
+									<div className="mb-2 text-sm font-medium">Available Preview Variables:</div>
+									<div className="bg-muted p-3 rounded-md">
+										{(data?.previewGeneratedVariables || []).map((variable) => (
+											<div key={variable.key} className="mb-2 last:mb-0">
+												<div className="flex items-center gap-2">
+													<code className="text-xs font-mono bg-background px-1 py-0.5 rounded">
+														{variable.key}
+													</code>
+													<span className="text-xs text-muted-foreground">
+														{showValues ? `= ${variable.value}` : '= •••••••••'}
+													</span>
+												</div>
+												{variable.description && (
+													<div className="text-xs text-muted-foreground mt-1 ml-1">
+														{variable.description}
+													</div>
+												)}
+											</div>
+										))}
+									</div>
+								</div>
+							)}
+
+							<div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
+								<strong>Preview Deployment Features:</strong>
+								<ul className="mt-1 space-y-1 ml-4">
+									<li>• Variables resolve with preview-specific context (branch, PR, etc.)</li>
+									<li>• Cross-service dependencies are isolated per preview deployment</li>
+									<li>• Generated URLs point to preview-specific endpoints</li>
+									<li>• Service discovery works within the preview deployment network</li>
+								</ul>
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
+				)}
+
 				<div className="text-xs text-muted-foreground border-t pt-3">
 					<strong>Environment Variable Resolution:</strong>
 					<ul className="mt-1 space-y-1 ml-4">
@@ -240,6 +337,9 @@ export const ShowEvaluatedEnvironment = ({ applicationId, env, projectEnv }: Pro
 						<li>• Circular dependencies are automatically detected and prevented</li>
 						{generatedCount > 0 && (
 							<li>• Generated variables are automatically available for reference</li>
+						)}
+						{(previewEvaluatedCount > 0 || previewGeneratedCount > 0) && (
+							<li>• Preview variables enable isolated cross-service dependencies for each deployment</li>
 						)}
 					</ul>
 				</div>

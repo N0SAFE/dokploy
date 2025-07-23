@@ -146,6 +146,7 @@ export const ShowEnvironment = ({ applicationId }: Props) => {
 				applicationId={applicationId} 
 				env={currentEnv}
 				projectEnv={data?.project?.env}
+				previewEnv={data?.previewEnv}
 			/>
 		</div>
 	);

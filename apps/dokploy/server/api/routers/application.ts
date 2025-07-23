@@ -355,6 +355,7 @@ export const applicationRouter = createTRPCRouter({
 		.input(apiSaveEnvironmentVariables.pick({ applicationId: true }).extend({
 			env: z.string().optional(),
 			projectEnv: z.string().optional(),
+			previewEnv: z.string().optional(),
 		}))
 		.query(async ({ input, ctx }) => {
 			const application = await findApplicationById(input.applicationId);
@@ -371,6 +372,7 @@ export const applicationRouter = createTRPCRouter({
 				// Use provided env vars or fall back to database values
 				const envToEvaluate = input.env !== undefined ? input.env : application.env;
 				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : application.project.env;
+				const previewEnvToEvaluate = input.previewEnv !== undefined ? input.previewEnv : application.previewEnv;
 
 				// Generate dynamic environment variables first so they can be used in resolution
 				const domains = await findDomainsByApplicationId(input.applicationId);
@@ -385,18 +387,55 @@ export const applicationRouter = createTRPCRouter({
 				const generator = new EnvVariableGenerator(context);
 				const generatedVars = generator.generateAll();
 
-				// Evaluate user-defined environment variables with access to generated variables
+				// Evaluate regular environment variables with access to generated variables
 				const evaluatedVars = prepareEnvironmentVariables(
 					envToEvaluate,
 					projectEnvToEvaluate,
 					generatedVars,
 				);
 
+				// Evaluate preview environment variables (if any)
+				let previewEvaluatedVars = {};
+				let previewGeneratedVars = [];
+				if (previewEnvToEvaluate) {
+					// For preview deployments, generate preview-specific variables
+					// This could include preview-specific URLs, ports, etc.
+					const previewContext = { ...context };
+					
+					// Add preview-specific variables to the generated vars
+					const previewSpecificVars = [
+						{
+							key: "DOKPLOY_DEPLOY_URL",
+							value: `preview-${application.appName}.${context.project.name}.example.com`,
+							description: "Preview deployment URL",
+							category: "preview"
+						},
+						{
+							key: "PREVIEW_BRANCH",
+							value: "feature-branch",
+							description: "Preview deployment branch name",
+							category: "preview"
+						}
+					];
+
+					previewGeneratedVars = [...generatedVars, ...previewSpecificVars];
+					
+					previewEvaluatedVars = prepareEnvironmentVariables(
+						previewEnvToEvaluate,
+						projectEnvToEvaluate,
+						previewGeneratedVars,
+					);
+				}
+
 				return {
 					rawEnvironment: envToEvaluate || "",
 					projectEnvironment: projectEnvToEvaluate || "",
 					evaluatedEnvironment: evaluatedVars,
 					generatedVariables: generatedVars,
+					// Add preview-specific data
+					previewEnvironment: previewEnvToEvaluate || "",
+					previewEvaluatedEnvironment: previewEvaluatedVars,
+					previewGeneratedVariables: previewGeneratedVars,
 				};
 			} catch (error) {
 				return {
@@ -404,6 +443,9 @@ export const applicationRouter = createTRPCRouter({
 					projectEnvironment: input.projectEnv !== undefined ? input.projectEnv : application.project.env || "",
 					evaluatedEnvironment: {},
 					generatedVariables: [],
+					previewEnvironment: input.previewEnv !== undefined ? input.previewEnv : application.previewEnv || "",
+					previewEvaluatedEnvironment: {},
+					previewGeneratedVariables: [],
 					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
 				};
 			}
