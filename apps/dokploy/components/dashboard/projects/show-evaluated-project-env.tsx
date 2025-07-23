@@ -9,14 +9,18 @@ import { api } from "@/utils/api";
 
 interface Props {
 	projectId: string;
+	env?: string;
 }
 
-export const ShowEvaluatedProjectEnvironment = ({ projectId }: Props) => {
+export const ShowEvaluatedProjectEnvironment = ({ projectId, env }: Props) => {
 	const [showValues, setShowValues] = useState(false);
 	const [showGenerated, setShowGenerated] = useState(false);
 
 	const { data, error, isLoading } = api.project.evaluateEnvironmentVariables.useQuery(
-		{ projectId },
+		{ 
+			projectId,
+			...(env !== undefined && { env }),
+		},
 		{ enabled: !!projectId }
 	);
 

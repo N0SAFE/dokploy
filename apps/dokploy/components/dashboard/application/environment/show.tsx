@@ -142,7 +142,11 @@ export const ShowEnvironment = ({ applicationId }: Props) => {
 					</form>
 				</Form>
 			</Card>
-			<ShowEvaluatedEnvironment applicationId={applicationId} />
+			<ShowEvaluatedEnvironment 
+				applicationId={applicationId} 
+				env={currentEnv}
+				projectEnv={data?.project?.env}
+			/>
 		</div>
 	);
 };

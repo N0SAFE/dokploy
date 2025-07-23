@@ -59,6 +59,10 @@ export const ProjectEnvironment = ({ projectId, children }: Props) => {
 		},
 		resolver: zodResolver(updateProjectSchema),
 	});
+
+	// Watch form values for real-time preview
+	const currentEnv = form.watch("env");
+
 	useEffect(() => {
 		if (data) {
 			form.reset({
@@ -148,7 +152,10 @@ PORT=3000
 							</form>
 						</Form>
 					</div>
-					<ShowEvaluatedProjectEnvironment projectId={projectId} />
+					<ShowEvaluatedProjectEnvironment 
+						projectId={projectId} 
+						env={currentEnv}
+					/>
 				</div>
 			</DialogContent>
 		</Dialog>

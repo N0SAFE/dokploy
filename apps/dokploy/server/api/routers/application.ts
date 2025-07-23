@@ -351,7 +351,10 @@ export const applicationRouter = createTRPCRouter({
 			return true;
 		}),
 	evaluateEnvironmentVariables: protectedProcedure
-		.input(apiSaveEnvironmentVariables.pick({ applicationId: true }))
+		.input(apiSaveEnvironmentVariables.pick({ applicationId: true }).extend({
+			env: z.string().optional(),
+			projectEnv: z.string().optional(),
+		}))
 		.query(async ({ input, ctx }) => {
 			const application = await findApplicationById(input.applicationId);
 			if (
@@ -364,10 +367,14 @@ export const applicationRouter = createTRPCRouter({
 			}
 
 			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : application.env;
+				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : application.project.env;
+
 				// Evaluate user-defined environment variables
 				const evaluatedVars = prepareEnvironmentVariables(
-					application.env,
-					application.project.env,
+					envToEvaluate,
+					projectEnvToEvaluate,
 				);
 
 				// Generate dynamic environment variables
@@ -377,15 +384,15 @@ export const applicationRouter = createTRPCRouter({
 				const generatedVars = generator.generateAll();
 
 				return {
-					rawEnvironment: application.env || "",
-					projectEnvironment: application.project.env || "",
+					rawEnvironment: envToEvaluate || "",
+					projectEnvironment: projectEnvToEvaluate || "",
 					evaluatedEnvironment: evaluatedVars,
 					generatedVariables: generatedVars,
 				};
 			} catch (error) {
 				return {
-					rawEnvironment: application.env || "",
-					projectEnvironment: application.project.env || "",
+					rawEnvironment: input.env !== undefined ? input.env : application.env || "",
+					projectEnvironment: input.projectEnv !== undefined ? input.projectEnv : application.project.env || "",
 					evaluatedEnvironment: {},
 					generatedVariables: [],
 					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",

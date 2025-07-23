@@ -292,7 +292,9 @@ export const projectRouter = createTRPCRouter({
 			}
 		}),
 	evaluateEnvironmentVariables: protectedProcedure
-		.input(apiFindOneProject)
+		.input(apiFindOneProject.extend({
+			env: z.string().optional(),
+		}))
 		.query(async ({ input, ctx }) => {
 			const project = await findProjectById(input.projectId);
 			if (project.organizationId !== ctx.session.activeOrganizationId) {
@@ -303,10 +305,13 @@ export const projectRouter = createTRPCRouter({
 			}
 
 			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : project.env;
+
 				// For project-level evaluation, we only resolve variables within the project scope
 				// since there's no "parent" scope for projects
 				const evaluatedVars = prepareEnvironmentVariables(
-					project.env,
+					envToEvaluate,
 					null, // No parent environment for projects
 				);
 
@@ -407,13 +412,13 @@ export const projectRouter = createTRPCRouter({
 				const generatedVars = generator.generateAll();
 
 				return {
-					rawEnvironment: project.env || "",
+					rawEnvironment: envToEvaluate || "",
 					evaluatedEnvironment: evaluatedVars,
 					generatedVariables: generatedVars,
 				};
 			} catch (error) {
 				return {
-					rawEnvironment: project.env || "",
+					rawEnvironment: input.env !== undefined ? input.env : project.env || "",
 					evaluatedEnvironment: {},
 					generatedVariables: [],
 					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
