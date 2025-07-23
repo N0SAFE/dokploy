@@ -30,6 +30,7 @@ import {
 } from "@dokploy/server";
 import {
 	createApplicationContext,
+	createDetailedServicesFromProject,
 	EnvVariableGenerator,
 } from "@dokploy/server/utils/env-generator/env-generator";
 import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
@@ -373,7 +374,14 @@ export const applicationRouter = createTRPCRouter({
 
 				// Generate dynamic environment variables first so they can be used in resolution
 				const domains = await findDomainsByApplicationId(input.applicationId);
+				
+				// Get full project with all services for comprehensive service variables
+				const fullProject = await findProjectById(application.projectId);
+				
 				const context = createApplicationContext(application, domains);
+				// Add detailed services to context
+				context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+				
 				const generator = new EnvVariableGenerator(context);
 				const generatedVars = generator.generateAll();
 

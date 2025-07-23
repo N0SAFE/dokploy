@@ -10,6 +10,7 @@ export interface EnvGenerationContext {
 		env?: string | null;
 		applications?: ApplicationInfo[];
 		services?: ServiceInfo[];
+		detailedServices?: DetailedServiceInfo[];
 		domains?: DomainInfo[];
 	};
 	application?: ApplicationInfo;
@@ -35,6 +36,24 @@ export interface ServiceInfo {
 	type: ServiceType;
 	appName: string;
 	domains: DomainInfo[];
+}
+
+export interface DetailedServiceInfo {
+	id: string;
+	name: string;
+	type: ServiceType;
+	appName: string;
+	domains: DomainInfo[];
+	// Database specific fields
+	databaseName?: string;
+	databaseUser?: string;
+	databasePassword?: string;
+	dockerImage?: string;
+	externalPort?: number;
+	// Application specific fields
+	ports?: PortInfo[];
+	// Compose specific fields
+	composeType?: "docker-compose" | "stack";
 }
 
 export interface DomainInfo {
@@ -72,6 +91,7 @@ export interface GeneratedEnvVar {
 		| "project"
 		| "application"
 		| "service"
+		| "services"
 		| "domain"
 		| "network"
 		| "system";
@@ -101,6 +121,9 @@ export class EnvVariableGenerator {
 
 		// Generate service-level variables
 		envVars.push(...this.generateServiceVars());
+
+		// Generate comprehensive services variables (new section)
+		envVars.push(...this.generateServicesVars());
 
 		// Generate domain-level variables
 		envVars.push(...this.generateDomainVars());
@@ -584,6 +607,294 @@ export class EnvVariableGenerator {
 		}
 
 		return vars;
+	}
+
+	/**
+	 * Generate comprehensive services variables for all services in the project
+	 */
+	private generateServicesVars(): GeneratedEnvVar[] {
+		const vars: GeneratedEnvVar[] = [];
+		const { project } = this.context;
+
+		if (!project.detailedServices) {
+			return vars;
+		}
+
+		for (const service of project.detailedServices) {
+			const serviceName = this.slugify(service.name).toUpperCase();
+			const serviceType = service.type.toUpperCase();
+
+			// Common variables for all services
+			vars.push({
+				key: `${serviceType}_${serviceName}_ID`,
+				value: service.id,
+				description: `${service.type} service ID for ${service.name}`,
+				category: "services",
+			});
+
+			vars.push({
+				key: `${serviceType}_${serviceName}_NAME`,
+				value: service.name,
+				description: `${service.type} service name for ${service.name}`,
+				category: "services",
+			});
+
+			vars.push({
+				key: `${serviceType}_${serviceName}_INTERNAL_HOST`,
+				value: service.appName,
+				description: `Internal Docker hostname for ${service.name}`,
+				category: "services",
+			});
+
+			// Generate service-specific variables based on type
+			if (service.type === "application") {
+				this.generateApplicationServiceVars(vars, service, serviceName);
+			} else if (service.type === "compose") {
+				this.generateComposeServiceVars(vars, service, serviceName);
+			} else if (["postgres", "mysql", "mariadb", "mongo", "redis"].includes(service.type)) {
+				this.generateDatabaseServiceVars(vars, service, serviceName, serviceType);
+			}
+		}
+
+		return vars;
+	}
+
+	/**
+	 * Generate application-specific service variables
+	 */
+	private generateApplicationServiceVars(vars: GeneratedEnvVar[], service: DetailedServiceInfo, serviceName: string): void {
+		// External URL if domains exist
+		if (service.domains && service.domains.length > 0) {
+			const primaryDomain = service.domains[0];
+			if (primaryDomain) {
+				const protocol = primaryDomain.https ? "https" : "http";
+				const port = primaryDomain.port && primaryDomain.port !== 80 && primaryDomain.port !== 443
+					? `:${primaryDomain.port}`
+					: "";
+				
+				vars.push({
+					key: `APP_${serviceName}_URL`,
+					value: `${protocol}://${primaryDomain.host}${port}`,
+					description: `External URL for application ${service.name}`,
+					category: "services",
+				});
+
+				vars.push({
+					key: `APP_${serviceName}_HOST`,
+					value: primaryDomain.host,
+					description: `External hostname for application ${service.name}`,
+					category: "services",
+				});
+
+				if (primaryDomain.port) {
+					vars.push({
+						key: `APP_${serviceName}_PORT`,
+						value: primaryDomain.port.toString(),
+						description: `External port for application ${service.name}`,
+						category: "services",
+					});
+				}
+			}
+		}
+
+		// Port information
+		if (service.ports && service.ports.length > 0) {
+			const primaryPort = service.ports[0];
+			if (primaryPort) {
+				vars.push({
+					key: `APP_${serviceName}_INTERNAL_PORT`,
+					value: primaryPort.targetPort.toString(),
+					description: `Internal port for application ${service.name}`,
+					category: "services",
+				});
+
+				vars.push({
+					key: `APP_${serviceName}_INTERNAL_URL`,
+					value: `http://${service.appName}:${primaryPort.targetPort}`,
+					description: `Internal URL for application ${service.name}`,
+					category: "services",
+				});
+			}
+		}
+
+		// Docker network
+		vars.push({
+			key: `APP_${serviceName}_NETWORK`,
+			value: `${this.context.project.projectId}_network`,
+			description: `Docker network for application ${service.name}`,
+			category: "services",
+		});
+	}
+
+	/**
+	 * Generate compose-specific service variables
+	 */
+	private generateComposeServiceVars(vars: GeneratedEnvVar[], service: DetailedServiceInfo, serviceName: string): void {
+		// External URL if domains exist
+		if (service.domains && service.domains.length > 0) {
+			const primaryDomain = service.domains[0];
+			if (primaryDomain) {
+				const protocol = primaryDomain.https ? "https" : "http";
+				const port = primaryDomain.port && primaryDomain.port !== 80 && primaryDomain.port !== 443
+					? `:${primaryDomain.port}`
+					: "";
+				
+				vars.push({
+					key: `COMPOSE_${serviceName}_URL`,
+					value: `${protocol}://${primaryDomain.host}${port}`,
+					description: `External URL for compose ${service.name}`,
+					category: "services",
+				});
+
+				vars.push({
+					key: `COMPOSE_${serviceName}_HOST`,
+					value: primaryDomain.host,
+					description: `External hostname for compose ${service.name}`,
+					category: "services",
+				});
+			}
+		}
+
+		// Compose type
+		if (service.composeType) {
+			vars.push({
+				key: `COMPOSE_${serviceName}_TYPE`,
+				value: service.composeType,
+				description: `Compose type for ${service.name}`,
+				category: "services",
+			});
+		}
+
+		// Docker network
+		vars.push({
+			key: `COMPOSE_${serviceName}_NETWORK`,
+			value: `${this.context.project.projectId}_network`,
+			description: `Docker network for compose ${service.name}`,
+			category: "services",
+		});
+	}
+
+	/**
+	 * Generate database-specific service variables
+	 */
+	private generateDatabaseServiceVars(vars: GeneratedEnvVar[], service: DetailedServiceInfo, serviceName: string, serviceType: string): void {
+		// Default ports based on database type
+		const defaultPorts: Record<string, number> = {
+			POSTGRES: 5432,
+			MYSQL: 3306,
+			MARIADB: 3306,
+			MONGO: 27017,
+			REDIS: 6379,
+		};
+
+		const defaultPort = defaultPorts[serviceType] || 5432;
+		const actualPort = service.externalPort || defaultPort;
+
+		vars.push({
+			key: `${serviceType}_${serviceName}_HOST`,
+			value: service.appName,
+			description: `Internal hostname for ${service.type} ${service.name}`,
+			category: "services",
+		});
+
+		vars.push({
+			key: `${serviceType}_${serviceName}_PORT`,
+			value: actualPort.toString(),
+			description: `Port for ${service.type} ${service.name}`,
+			category: "services",
+		});
+
+		// Database credentials and connection info
+		if (service.databaseName) {
+			vars.push({
+				key: `${serviceType}_${serviceName}_DATABASE`,
+				value: service.databaseName,
+				description: `Database name for ${service.type} ${service.name}`,
+				category: "services",
+			});
+		}
+
+		if (service.databaseUser) {
+			vars.push({
+				key: `${serviceType}_${serviceName}_USER`,
+				value: service.databaseUser,
+				description: `Database user for ${service.type} ${service.name}`,
+				category: "services",
+			});
+
+			vars.push({
+				key: `${serviceType}_${serviceName}_USERNAME`,
+				value: service.databaseUser,
+				description: `Database username for ${service.type} ${service.name}`,
+				category: "services",
+			});
+		}
+
+		if (service.databasePassword) {
+			vars.push({
+				key: `${serviceType}_${serviceName}_PASSWORD`,
+				value: service.databasePassword,
+				description: `Database password for ${service.type} ${service.name}`,
+				category: "services",
+			});
+		}
+
+		// Connection URLs
+		if (service.databaseUser && service.databasePassword && service.databaseName) {
+			let connectionUrl = "";
+			
+			switch (service.type) {
+				case "postgres":
+					connectionUrl = `postgresql://${service.databaseUser}:${service.databasePassword}@${service.appName}:${actualPort}/${service.databaseName}`;
+					break;
+				case "mysql":
+				case "mariadb":
+					connectionUrl = `mysql://${service.databaseUser}:${service.databasePassword}@${service.appName}:${actualPort}/${service.databaseName}`;
+					break;
+				case "mongo":
+					connectionUrl = `mongodb://${service.databaseUser}:${service.databasePassword}@${service.appName}:${actualPort}/${service.databaseName}`;
+					break;
+				case "redis":
+					connectionUrl = service.databasePassword 
+						? `redis://:${service.databasePassword}@${service.appName}:${actualPort}`
+						: `redis://${service.appName}:${actualPort}`;
+					break;
+			}
+
+			if (connectionUrl) {
+				vars.push({
+					key: `${serviceType}_${serviceName}_URL`,
+					value: connectionUrl,
+					description: `Connection URL for ${service.type} ${service.name}`,
+					category: "services",
+				});
+
+				vars.push({
+					key: `${serviceType}_${serviceName}_CONNECTION_URL`,
+					value: connectionUrl,
+					description: `Full connection URL for ${service.type} ${service.name}`,
+					category: "services",
+				});
+			}
+		}
+
+		// Internal URL for service-to-service communication
+		vars.push({
+			key: `${serviceType}_${serviceName}_INTERNAL_URL`,
+			value: `${service.appName}:${actualPort}`,
+			description: `Internal connection URL for ${service.type} ${service.name}`,
+			category: "services",
+		});
+
+		// Docker image if available
+		if (service.dockerImage) {
+			vars.push({
+				key: `${serviceType}_${serviceName}_IMAGE`,
+				value: service.dockerImage,
+				description: `Docker image for ${service.type} ${service.name}`,
+				category: "services",
+			});
+		}
 	}
 
 	/**

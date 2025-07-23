@@ -13,6 +13,7 @@ export {
 	createApplicationContext,
 	createComposeContext,
 	createDatabaseContext,
+	createDetailedServicesFromProject,
 	createProjectContext,
 	generateConnectionUrls,
 	toDockerEnvArray,

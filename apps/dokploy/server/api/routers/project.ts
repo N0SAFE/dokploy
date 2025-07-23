@@ -32,6 +32,7 @@ import {
 	updateProjectById,
 } from "@dokploy/server";
 import {
+	createDetailedServicesFromProject,
 	createProjectContext,
 	EnvVariableGenerator,
 } from "@dokploy/server/utils/env-generator/env-generator";
@@ -400,6 +401,9 @@ export const projectRouter = createTRPCRouter({
 					applications: applicationData,
 					services: serviceData,
 				});
+				
+				// Add detailed services to context for comprehensive service variables
+				context.project.detailedServices = createDetailedServicesFromProject(project);
 
 				const generator = new EnvVariableGenerator(context);
 				const generatedVars = generator.generateAll();

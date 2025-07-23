@@ -6,6 +6,7 @@ import type {
 	EnvGenerationContext,
 	PortInfo,
 	ServiceInfo,
+	DetailedServiceInfo,
 } from "./index";
 
 /**
@@ -419,4 +420,129 @@ export function generateConnectionUrls(
 	});
 
 	return connectionUrls;
+}
+
+/**
+ * Create detailed service information from a project
+ */
+export function createDetailedServicesFromProject(project: any): any[] {
+	const detailedServices: any[] = [];
+
+	// Add applications
+	if (project.applications) {
+		for (const app of project.applications) {
+			detailedServices.push({
+				id: app.applicationId,
+				name: app.name,
+				type: "application",
+				appName: app.appName,
+				domains: app.domains || [],
+				ports: app.ports || [],
+			});
+		}
+	}
+
+	// Add compose projects
+	if (project.compose) {
+		for (const compose of project.compose) {
+			detailedServices.push({
+				id: compose.composeId,
+				name: compose.name,
+				type: "compose",
+				appName: compose.appName,
+				domains: compose.domains || [],
+				composeType: compose.composeType,
+			});
+		}
+	}
+
+	// Add postgres databases
+	if (project.postgres) {
+		for (const db of project.postgres) {
+			detailedServices.push({
+				id: db.postgresId,
+				name: db.name,
+				type: "postgres",
+				appName: db.appName,
+				domains: [],
+				databaseName: db.databaseName,
+				databaseUser: db.databaseUser,
+				databasePassword: db.databasePassword,
+				dockerImage: db.dockerImage,
+				externalPort: db.externalPort,
+			});
+		}
+	}
+
+	// Add mysql databases
+	if (project.mysql) {
+		for (const db of project.mysql) {
+			detailedServices.push({
+				id: db.mysqlId,
+				name: db.name,
+				type: "mysql",
+				appName: db.appName,
+				domains: [],
+				databaseName: db.databaseName,
+				databaseUser: db.databaseUser,
+				databasePassword: db.databasePassword,
+				dockerImage: db.dockerImage,
+				externalPort: db.externalPort,
+			});
+		}
+	}
+
+	// Add mariadb databases
+	if (project.mariadb) {
+		for (const db of project.mariadb) {
+			detailedServices.push({
+				id: db.mariadbId,
+				name: db.name,
+				type: "mariadb",
+				appName: db.appName,
+				domains: [],
+				databaseName: db.databaseName,
+				databaseUser: db.databaseUser,
+				databasePassword: db.databasePassword,
+				dockerImage: db.dockerImage,
+				externalPort: db.externalPort,
+			});
+		}
+	}
+
+	// Add mongo databases
+	if (project.mongo) {
+		for (const db of project.mongo) {
+			detailedServices.push({
+				id: db.mongoId,
+				name: db.name,
+				type: "mongo",
+				appName: db.appName,
+				domains: [],
+				databaseName: db.databaseName,
+				databaseUser: db.databaseUser,
+				databasePassword: db.databasePassword,
+				dockerImage: db.dockerImage,
+				externalPort: db.externalPort,
+			});
+		}
+	}
+
+	// Add redis databases
+	if (project.redis) {
+		for (const db of project.redis) {
+			detailedServices.push({
+				id: db.redisId,
+				name: db.name,
+				type: "redis",
+				appName: db.appName,
+				domains: [],
+				databasePassword: db.databasePassword,
+				dockerImage: db.dockerImage,
+				externalPort: db.externalPort,
+			});
+		}
+	}
+
+	return detailedServices;
 }
