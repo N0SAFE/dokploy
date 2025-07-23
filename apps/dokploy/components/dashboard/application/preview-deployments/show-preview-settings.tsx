@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input, NumberInput } from "@/components/ui/input";
 import { Secrets } from "@/components/ui/secrets";
+import { ShowEvaluatedEnvironment } from "@/components/dashboard/application/environment/show-evaluated-env";
 import {
 	Select,
 	SelectContent,
@@ -369,6 +370,15 @@ export const ShowPreviewSettings = ({ applicationId }: Props) => {
 										</FormItem>
 									)}
 								/>
+								
+								{/* Environment Variable Preview for Preview Deployments */}
+								<div className="col-span-full">
+									<ShowEvaluatedEnvironment
+										applicationId={applicationId}
+										previewEnv={form.watch("env")}
+										projectEnv={data?.project?.env}
+									/>
+								</div>
 								{data?.buildType === "dockerfile" && (
 									<Secrets
 										name="buildArgs"

@@ -394,10 +394,10 @@ export const applicationRouter = createTRPCRouter({
 					generatedVars,
 				);
 
-				// Evaluate preview environment variables (if any)
+				// Evaluate preview environment variables (only if preview deployments are active)
 				let previewEvaluatedVars = {};
 				let previewGeneratedVars = [];
-				if (previewEnvToEvaluate) {
+				if (previewEnvToEvaluate && application.isPreviewDeploymentsActive) {
 					// For preview deployments, generate preview-specific variables
 					// This could include preview-specific URLs, ports, etc.
 					const previewContext = { ...context };
