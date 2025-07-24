@@ -155,8 +155,6 @@ export const monorepo = pgTable("monorepo", {
 	previewRequireCollaboratorPermissions: boolean(
 		"previewRequireCollaboratorPermissions",
 	).default(true),
-
-	triggerType: triggerType("triggerType").default("push"),
 	monorepoStatus: applicationStatus("monorepoStatus").notNull().default("idle"),
 	createdAt: text("createdAt")
 		.notNull()
