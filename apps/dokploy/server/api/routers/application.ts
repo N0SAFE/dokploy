@@ -397,9 +397,8 @@ export const applicationRouter = createTRPCRouter({
 				// Evaluate preview environment variables (only if preview deployments are active)
 				let previewEvaluatedVars = {};
 				let previewGeneratedVars = [];
-				if (previewEnvToEvaluate && application.isPreviewDeploymentsActive) {
+				if (application.isPreviewDeploymentsActive) {
 					// For preview deployments, generate preview-specific variables
-					// This could include preview-specific URLs, ports, etc.
 					const previewContext = { ...context };
 					
 					// Add preview-specific variables to the generated vars
@@ -418,13 +417,63 @@ export const applicationRouter = createTRPCRouter({
 						}
 					];
 
-					previewGeneratedVars = [...generatedVars, ...previewSpecificVars];
+					// Generate preview versions of all existing environment variables
+					const envToAnalyze = previewEnvToEvaluate || envToEvaluate || "";
+					const projectEnvToAnalyze = projectEnvToEvaluate || "";
 					
-					previewEvaluatedVars = prepareEnvironmentVariables(
-						previewEnvToEvaluate,
-						projectEnvToEvaluate,
-						previewGeneratedVars,
-					);
+					// Parse environment variables to create preview versions
+					const parseEnvVars = (envString: string) => {
+						if (!envString) return [];
+						return envString.split('\n')
+							.filter(line => line.trim() && !line.trim().startsWith('#'))
+							.map(line => {
+								const [key, ...valueParts] = line.split('=');
+								return { key: key?.trim(), value: valueParts.join('=') };
+							})
+							.filter(({ key, value }) => key && value !== undefined);
+					};
+
+					const serviceVars = parseEnvVars(envToAnalyze);
+					const projectVars = parseEnvVars(projectEnvToAnalyze);
+					const allVars = [...serviceVars, ...projectVars];
+
+					// Create preview versions of existing variables
+					const previewVersions = allVars.map(({ key, value }) => {
+						// Generate preview-specific value based on the original
+						let previewValue = value;
+						
+						// For common patterns, adjust the preview value
+						if (value.includes('localhost')) {
+							previewValue = value.replace('localhost', `localhost-preview-${application.appName}`);
+						} else if (value.match(/^\d+$/)) {
+							// If it's just a number (like a port), add a preview offset
+							const port = parseInt(value, 10);
+							previewValue = (port + 10000).toString(); // Preview ports start from +10000
+						} else if (value.includes('://')) {
+							// If it's a URL, add preview prefix
+							previewValue = value.replace('://', `://preview-${application.appName}-`);
+						} else {
+							// For other values, add a preview suffix
+							previewValue = `${value}-preview-${application.appName}`;
+						}
+
+						return {
+							key: `${key}_PREVIEW`,
+							value: previewValue,
+							description: `Preview deployment version of ${key}`,
+							category: "preview"
+						};
+					});
+
+					previewGeneratedVars = [...generatedVars, ...previewSpecificVars, ...previewVersions];
+					
+					if (previewEnvToEvaluate) {
+						previewEvaluatedVars = prepareEnvironmentVariables(
+							previewEnvToEvaluate,
+							projectEnvToEvaluate,
+							previewGeneratedVars,
+						);
+					}
 				}
 
 				return {

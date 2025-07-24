@@ -76,7 +76,7 @@ export const buildApplication = async (
 	}
 };
 
-export const getBuildCommand = (
+export const getBuildCommand = async (
 	application: ApplicationNested,
 	logPath: string,
 ) => {
@@ -84,22 +84,22 @@ export const getBuildCommand = (
 	const { buildType, registry } = application;
 	switch (buildType) {
 		case "nixpacks":
-			command = getNixpacksCommand(application, logPath);
+			command = await getNixpacksCommand(application, logPath);
 			break;
 		case "heroku_buildpacks":
-			command = getHerokuCommand(application, logPath);
+			command = await getHerokuCommand(application, logPath);
 			break;
 		case "paketo_buildpacks":
-			command = getPaketoCommand(application, logPath);
+			command = await getPaketoCommand(application, logPath);
 			break;
 		case "static":
 			command = getStaticCommand(application, logPath);
 			break;
 		case "dockerfile":
-			command = getDockerCommand(application, logPath);
+			command = await getDockerCommand(application, logPath);
 			break;
 		case "railpack":
-			command = getRailpackCommand(application, logPath);
+			command = await getRailpackCommand(application, logPath);
 			break;
 	}
 	if (registry) {

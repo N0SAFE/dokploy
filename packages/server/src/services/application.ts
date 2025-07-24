@@ -341,7 +341,7 @@ export const deployRemoteApplication = async ({
 			}
 
 			if (application.sourceType !== "docker") {
-				command += getBuildCommand(application, deployment.logPath);
+				command += await getBuildCommand(application, deployment.logPath);
 			}
 			await execAsyncRemote(application.serverId, command);
 			await mechanizeDockerContainer(application);
@@ -587,7 +587,7 @@ export const deployRemotePreviewApplication = async ({
 				});
 			}
 
-			command += getBuildCommand(application, deployment.logPath);
+			command += await getBuildCommand(application, deployment.logPath);
 			await execAsyncRemote(application.serverId, command);
 			await mechanizeDockerContainer(application);
 		}
@@ -642,7 +642,7 @@ export const rebuildRemoteApplication = async ({
 		if (application.serverId) {
 			if (application.sourceType !== "docker") {
 				let command = "set -e;";
-				command += getBuildCommand(application, deployment.logPath);
+				command += await getBuildCommand(application, deployment.logPath);
 				await execAsyncRemote(application.serverId, command);
 			}
 			await mechanizeDockerContainer(application);
