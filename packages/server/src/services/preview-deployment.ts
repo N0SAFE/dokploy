@@ -304,12 +304,13 @@ const createMonorepoPreviewDeployment = async (
 	});
 
 	// For monorepo, we need to create a temporary application-like object for domain management
-	const tempAppForDomain = {
-		...monorepoItem,
-		appName: appName,
-	};
+	// TODO: Implement proper monorepo domain management or make manageDomain work with monorepos
+	// const tempAppForDomain = {
+	// 	...monorepoItem,
+	// 	appName: appName,
+	// };
 
-	await manageDomain(tempAppForDomain, newDomain);
+	// await manageDomain(tempAppForDomain, newDomain);
 
 	await db
 		.update(previewDeployments)

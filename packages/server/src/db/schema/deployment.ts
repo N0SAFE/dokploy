@@ -161,6 +161,18 @@ export const apiCreateDeploymentCompose = schema
 		composeId: z.string().min(1),
 	});
 
+export const apiCreateDeploymentMonorepo = schema
+	.pick({
+		title: true,
+		status: true,
+		logPath: true,
+		monorepoId: true,
+		description: true,
+	})
+	.extend({
+		monorepoId: z.string().min(1),
+	});
+
 export const apiCreateDeploymentBackup = schema
 	.pick({
 		title: true,

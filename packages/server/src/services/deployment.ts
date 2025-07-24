@@ -6,6 +6,7 @@ import {
 	type apiCreateDeployment,
 	type apiCreateDeploymentBackup,
 	type apiCreateDeploymentCompose,
+	type apiCreateDeploymentMonorepo,
 	type apiCreateDeploymentPreview,
 	type apiCreateDeploymentSchedule,
 	type apiCreateDeploymentServer,
@@ -24,6 +25,7 @@ import {
 } from "./application";
 import { findBackupById } from "./backup";
 import { type Compose, findComposeById, updateCompose } from "./compose";
+import { findMonorepoById } from "./monorepo";
 import {
 	findPreviewDeploymentById,
 	type PreviewDeployment,
@@ -295,6 +297,80 @@ echo "Initializing deployment" >> ${logFilePath};
 		await updateCompose(compose.composeId, {
 			composeStatus: "error",
 		});
+		console.log(error);
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: "Error creating the deployment",
+		});
+	}
+};
+
+export const createDeploymentMonorepo = async (
+	deployment: Omit<
+		typeof apiCreateDeploymentMonorepo._type,
+		"deploymentId" | "createdAt" | "status" | "logPath"
+	>,
+) => {
+	const monorepo = await findMonorepoById(deployment.monorepoId);
+	try {
+		await removeLastTenDeployments(
+			deployment.monorepoId,
+			"monorepo",
+			monorepo.server?.serverId || null,
+		);
+
+		const { LOGS_PATH } = paths(!!monorepo.server?.serverId);
+		const formattedDateTime = format(new Date(), "yyyy-MM-dd:HH:mm:ss");
+		const fileName = `${monorepo.appName}-${formattedDateTime}.log`;
+		const logFilePath = path.join(LOGS_PATH, monorepo.appName, fileName);
+
+		if (monorepo.server?.serverId) {
+			const server = await findServerById(monorepo.server.serverId);
+			const command = `
+mkdir -p ${LOGS_PATH}/${monorepo.appName};
+echo "Initializing deployment" >> ${logFilePath};
+`;
+
+			await execAsyncRemote(server.serverId, command);
+		} else {
+			await fsPromises.mkdir(path.join(LOGS_PATH, monorepo.appName), {
+				recursive: true,
+			});
+			await fsPromises.writeFile(logFilePath, "Initializing deployment");
+		}
+
+		const deploymentCreate = await db
+			.insert(deployments)
+			.values({
+				monorepoId: deployment.monorepoId,
+				title: deployment.title || "Deployment",
+				description: deployment.description || "",
+				status: "running",
+				logPath: logFilePath,
+				startedAt: new Date().toISOString(),
+			})
+			.returning();
+		if (deploymentCreate.length === 0 || !deploymentCreate[0]) {
+			throw new TRPCError({
+				code: "BAD_REQUEST",
+				message: "Error creating the deployment",
+			});
+		}
+		return deploymentCreate[0];
+	} catch (error) {
+		await db
+			.insert(deployments)
+			.values({
+				monorepoId: deployment.monorepoId,
+				title: deployment.title || "Deployment",
+				status: "error",
+				logPath: "",
+				description: deployment.description || "",
+				errorMessage: `An error have occured: ${error instanceof Error ? error.message : error}`,
+				startedAt: new Date().toISOString(),
+				finishedAt: new Date().toISOString(),
+			})
+			.returning();
 		console.log(error);
 		throw new TRPCError({
 			code: "BAD_REQUEST",
@@ -575,6 +651,7 @@ const getDeploymentsByType = async (
 	type:
 		| "application"
 		| "compose"
+		| "monorepo"
 		| "server"
 		| "schedule"
 		| "previewDeployment"
@@ -608,6 +685,7 @@ const removeLastTenDeployments = async (
 	type:
 		| "application"
 		| "compose"
+		| "monorepo"
 		| "server"
 		| "schedule"
 		| "previewDeployment"

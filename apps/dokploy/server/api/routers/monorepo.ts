@@ -5,6 +5,8 @@ import {
 	removeMonorepoById,
 	updateMonorepoById,
 	updateMonorepoToken,
+	checkServiceAccess,
+	findProjectById,
 } from "@dokploy/server";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
@@ -143,5 +145,4 @@ export const monorepoRouter = createTRPCRouter({
 		}),
 });
 
-// These imports need to be added to support the router
-import { checkServiceAccess, findProjectById } from "@dokploy/server";
+// Remove the extra import at the bottom since they're now imported above
