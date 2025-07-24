@@ -13,6 +13,7 @@ import { gitlab } from "./gitlab";
 import { mounts } from "./mount";
 import { previewDeployments } from "./preview-deployments";
 import { projects } from "./project";
+import { registry } from "./registry";
 import { schedules } from "./schedule";
 import { server } from "./server";
 import { applicationStatus, certificateType, triggerType } from "./shared";
@@ -20,18 +21,22 @@ import { sshKeys } from "./ssh-key";
 import { generateAppName } from "./utils";
 
 export const sourceTypeMonorepo = pgEnum("sourceTypeMonorepo", [
+	"docker",
 	"git",
 	"github",
 	"gitlab",
 	"bitbucket",
 	"gitea",
-	"raw",
+	"drop",
 ]);
 
-export const deploymentType = pgEnum("deploymentType", [
+export const buildTypeMonorepo = pgEnum("buildTypeMonorepo", [
 	"dockerfile",
-	"docker-compose",
-	"command",
+	"heroku_buildpacks",
+	"paketo_buildpacks",
+	"nixpacks",
+	"static",
+	"railpack",
 ]);
 
 export interface MonorepoService {
@@ -39,14 +44,21 @@ export interface MonorepoService {
 	name: string;
 	appName: string;
 	description?: string;
-	port?: number;
-	domains?: string[];
 	env?: string;
+	buildType: string; // dockerfile, heroku_buildpacks, paketo_buildpacks, nixpacks, static, railpack
+	// Dockerfile specific
 	dockerfile?: string;
 	dockerContextPath?: string;
 	dockerBuildStage?: string;
 	buildPath?: string;
+	// Heroku buildpack specific
+	herokuVersion?: string;
+	// Static specific
+	publishDirectory?: string;
+	isStaticSpa?: boolean;
+	// Command specific (for custom builds)
 	command?: string;
+	// Health check
 	healthCheckPath?: string;
 	enabled: boolean;
 }
@@ -69,22 +81,61 @@ export const monorepo = pgTable("monorepo", {
 	refreshToken: text("refreshToken").$defaultFn(() => nanoid()),
 	webhookToken: text("webhookToken").$defaultFn(() => nanoid()),
 	sourceType: sourceTypeMonorepo("sourceType").notNull().default("github"),
-	deploymentType: deploymentType("deploymentType")
-		.notNull()
-		.default("dockerfile"),
 
-	// Dockerfile configuration
-	dockerfile: text("dockerfile"),
-	dockerContextPath: text("dockerContextPath"),
-	dockerBuildStage: text("dockerBuildStage"),
+	// Services configuration for multiple services in monorepo
+	servicesConfig: json("servicesConfig").$type<MonorepoServicesConfig>().default({
+		services: []
+	}),
+
+	// Docker Provider
+	username: text("username"),
+	password: text("password"),
+	dockerImage: text("dockerImage"),
+	registryUrl: text("registryUrl"),
+
+	// Git Provider (common fields)
+	repository: text("repository"),
+	owner: text("owner"),
+	branch: text("branch"),
 	buildPath: text("buildPath").default("/"),
+	triggerType: triggerType("triggerType").default("push"),
+	autoDeploy: boolean("autoDeploy").$defaultFn(() => true),
+	watchPaths: text("watchPaths").array(),
+	enableSubmodules: boolean("enableSubmodules").notNull().default(false),
 
-	// Docker Compose configuration
-	composeFile: text("composeFile").default(""),
-	composePath: text("composePath").default("./docker-compose.yml"),
+	// Git custom provider
+	customGitUrl: text("customGitUrl"),
+	customGitBranch: text("customGitBranch"),
+	customGitBuildPath: text("customGitBuildPath"),
+	customGitSSHKeyId: text("customGitSSHKeyId").references(
+		() => sshKeys.sshKeyId,
+		{
+			onDelete: "set null",
+		},
+	),
 
-	// Command configuration
-	command: text("command").default(""),
+	// Gitlab
+	gitlabProjectId: integer("gitlabProjectId"),
+	gitlabRepository: text("gitlabRepository"),
+	gitlabOwner: text("gitlabOwner"),
+	gitlabBranch: text("gitlabBranch"),
+	gitlabBuildPath: text("gitlabBuildPath").default("/"),
+	gitlabPathNamespace: text("gitlabPathNamespace"),
+
+	// Bitbucket
+	bitbucketRepository: text("bitbucketRepository"),
+	bitbucketOwner: text("bitbucketOwner"),
+	bitbucketBranch: text("bitbucketBranch"),
+	bitbucketBuildPath: text("bitbucketBuildPath").default("/"),
+
+	// Gitea
+	giteaRepository: text("giteaRepository"),
+	giteaOwner: text("giteaOwner"),
+	giteaBranch: text("giteaBranch"),
+	giteaBuildPath: text("giteaBuildPath").default("/"),
+
+	// Drop (file upload) specific
+	dropBuildPath: text("dropBuildPath"),
 
 	// Preview deployment settings
 	isPreviewDeploymentsActive: boolean("isPreviewDeploymentsActive").default(
@@ -105,54 +156,17 @@ export const monorepo = pgTable("monorepo", {
 		"previewRequireCollaboratorPermissions",
 	).default(true),
 
-	// Services configuration for multiple services in monorepo
-	servicesConfig: json("servicesConfig").$type<MonorepoServicesConfig>().default({
-		services: []
-	}),
-
-	// Git provider fields
-	repository: text("repository"),
-	owner: text("owner"),
-	branch: text("branch"),
-	autoDeploy: boolean("autoDeploy").$defaultFn(() => true),
-	watchPaths: text("watchPaths").array(),
-	enableSubmodules: boolean("enableSubmodules").notNull().default(false),
-
-	// Gitlab
-	gitlabProjectId: integer("gitlabProjectId"),
-	gitlabRepository: text("gitlabRepository"),
-	gitlabOwner: text("gitlabOwner"),
-	gitlabBranch: text("gitlabBranch"),
-	gitlabPathNamespace: text("gitlabPathNamespace"),
-
-	// Bitbucket
-	bitbucketRepository: text("bitbucketRepository"),
-	bitbucketOwner: text("bitbucketOwner"),
-	bitbucketBranch: text("bitbucketBranch"),
-
-	// Gitea
-	giteaRepository: text("giteaRepository"),
-	giteaOwner: text("giteaOwner"),
-	giteaBranch: text("giteaBranch"),
-
-	// Git
-	customGitUrl: text("customGitUrl"),
-	customGitBranch: text("customGitBranch"),
-	customGitSSHKeyId: text("customGitSSHKeyId").references(
-		() => sshKeys.sshKeyId,
-		{
-			onDelete: "set null",
-		},
-	),
-
 	triggerType: triggerType("triggerType").default("push"),
 	monorepoStatus: applicationStatus("monorepoStatus").notNull().default("idle"),
-	projectId: text("projectId")
-		.notNull()
-		.references(() => projects.projectId, { onDelete: "cascade" }),
 	createdAt: text("createdAt")
 		.notNull()
 		.$defaultFn(() => new Date().toISOString()),
+	registryId: text("registryId").references(() => registry.registryId, {
+		onDelete: "set null",
+	}),
+	projectId: text("projectId")
+		.notNull()
+		.references(() => projects.projectId, { onDelete: "cascade" }),
 	githubId: text("githubId").references(() => github.githubId, {
 		onDelete: "set null",
 	}),
@@ -202,6 +216,10 @@ export const monorepoRelations = relations(monorepo, ({ one, many }) => ({
 		fields: [monorepo.serverId],
 		references: [server.serverId],
 	}),
+	registry: one(registry, {
+		fields: [monorepo.registryId],
+		references: [registry.registryId],
+	}),
 	backups: many(backups),
 	schedules: many(schedules),
 	previewDeployments: many(previewDeployments),
@@ -212,14 +230,28 @@ const MonorepoServiceSchema = z.object({
 	name: z.string().min(1, "Service name is required"),
 	appName: z.string().min(1, "App name is required"),
 	description: z.string().optional(),
-	port: z.number().int().min(1).max(65535).optional(),
-	domains: z.array(z.string()).optional(),
 	env: z.string().optional(),
+	buildType: z.enum([
+		"dockerfile",
+		"heroku_buildpacks",
+		"paketo_buildpacks",
+		"nixpacks",
+		"static",
+		"railpack",
+	]).default("nixpacks"),
+	// Dockerfile specific
 	dockerfile: z.string().optional(),
 	dockerContextPath: z.string().optional(),
 	dockerBuildStage: z.string().optional(),
 	buildPath: z.string().optional(),
+	// Heroku buildpack specific
+	herokuVersion: z.string().optional(),
+	// Static specific
+	publishDirectory: z.string().optional(),
+	isStaticSpa: z.boolean().optional(),
+	// Command specific (for custom builds)
 	command: z.string().optional(),
+	// Health check
 	healthCheckPath: z.string().optional(),
 	enabled: z.boolean().default(true),
 });
@@ -234,14 +266,46 @@ const createSchema = createInsertSchema(monorepo, {
 	env: z.string().optional(),
 	projectId: z.string(),
 	customGitSSHKeyId: z.string().optional(),
-	command: z.string().optional(),
-	dockerfile: z.string().optional(),
-	composeFile: z.string().optional(),
-	composePath: z.string().min(1),
-	deploymentType: z
-		.enum(["dockerfile", "docker-compose", "command"])
+	servicesConfig: MonorepoServicesConfigSchema.optional(),
+	sourceType: z
+		.enum(["github", "docker", "git", "gitlab", "bitbucket", "gitea", "drop"])
 		.optional(),
+	// Docker provider
+	dockerImage: z.string().optional(),
+	username: z.string().optional(),
+	password: z.string().optional(),
+	registryUrl: z.string().optional(),
+	// Git provider fields
+	repository: z.string().optional(),
+	owner: z.string().optional(),
+	branch: z.string().optional(),
+	buildPath: z.string().optional(),
 	watchPaths: z.array(z.string()).optional(),
+	enableSubmodules: z.boolean().optional(),
+	// Custom git
+	customGitUrl: z.string().optional(),
+	customGitBranch: z.string().optional(),
+	customGitBuildPath: z.string().optional(),
+	// Gitlab
+	gitlabRepository: z.string().optional(),
+	gitlabOwner: z.string().optional(),
+	gitlabBranch: z.string().optional(),
+	gitlabBuildPath: z.string().optional(),
+	gitlabProjectId: z.number().optional(),
+	gitlabPathNamespace: z.string().optional(),
+	// Bitbucket
+	bitbucketRepository: z.string().optional(),
+	bitbucketOwner: z.string().optional(),
+	bitbucketBranch: z.string().optional(),
+	bitbucketBuildPath: z.string().optional(),
+	// Gitea
+	giteaRepository: z.string().optional(),
+	giteaOwner: z.string().optional(),
+	giteaBranch: z.string().optional(),
+	giteaBuildPath: z.string().optional(),
+	// Drop
+	dropBuildPath: z.string().optional(),
+	// Preview settings
 	previewPort: z.number().optional(),
 	previewEnv: z.string().optional(),
 	previewBuildArgs: z.string().optional(),
@@ -251,14 +315,12 @@ const createSchema = createInsertSchema(monorepo, {
 	previewPath: z.string().optional(),
 	previewCertificateType: z.enum(["letsencrypt", "none", "custom"]).optional(),
 	previewRequireCollaboratorPermissions: z.boolean().optional(),
-	servicesConfig: MonorepoServicesConfigSchema.optional(),
 });
 
 export const apiCreateMonorepo = createSchema.pick({
 	name: true,
 	description: true,
 	projectId: true,
-	deploymentType: true,
 	appName: true,
 	serverId: true,
 });
@@ -291,5 +353,100 @@ export const apiUpdateMonorepoServices = z.object({
 	monorepoId: z.string().min(1),
 	servicesConfig: MonorepoServicesConfigSchema,
 });
+
+// Provider-specific APIs (similar to applications)
+export const apiSaveGithubProviderMonorepo = createSchema
+	.pick({
+		monorepoId: true,
+		repository: true,
+		branch: true,
+		owner: true,
+		buildPath: true,
+		githubId: true,
+		watchPaths: true,
+		enableSubmodules: true,
+	})
+	.required()
+	.extend({
+		monorepoId: z.string().min(1),
+		triggerType: z.enum(["push", "tag"]).default("push"),
+	});
+
+export const apiSaveGitlabProviderMonorepo = createSchema
+	.pick({
+		monorepoId: true,
+		gitlabBranch: true,
+		gitlabBuildPath: true,
+		gitlabOwner: true,
+		gitlabRepository: true,
+		gitlabId: true,
+		gitlabProjectId: true,
+		gitlabPathNamespace: true,
+		watchPaths: true,
+		enableSubmodules: true,
+	})
+	.required()
+	.extend({
+		monorepoId: z.string().min(1),
+	});
+
+export const apiSaveBitbucketProviderMonorepo = createSchema
+	.pick({
+		bitbucketBranch: true,
+		bitbucketBuildPath: true,
+		bitbucketOwner: true,
+		bitbucketRepository: true,
+		bitbucketId: true,
+		monorepoId: true,
+		watchPaths: true,
+		enableSubmodules: true,
+	})
+	.required();
+
+export const apiSaveGiteaProviderMonorepo = createSchema
+	.pick({
+		monorepoId: true,
+		giteaBranch: true,
+		giteaBuildPath: true,
+		giteaOwner: true,
+		giteaRepository: true,
+		giteaId: true,
+		watchPaths: true,
+		enableSubmodules: true,
+	})
+	.required();
+
+export const apiSaveDockerProviderMonorepo = createSchema
+	.pick({
+		dockerImage: true,
+		monorepoId: true,
+		username: true,
+		password: true,
+		registryUrl: true,
+	})
+	.required();
+
+export const apiSaveGitProviderMonorepo = createSchema
+	.pick({
+		customGitBranch: true,
+		monorepoId: true,
+		customGitBuildPath: true,
+		customGitUrl: true,
+		watchPaths: true,
+		enableSubmodules: true,
+	})
+	.required()
+	.merge(
+		createSchema.pick({
+			customGitSSHKeyId: true,
+		}),
+	);
+
+export const apiSaveDropProviderMonorepo = createSchema
+	.pick({
+		monorepoId: true,
+		dropBuildPath: true,
+	})
+	.required();
 
 export { MonorepoServiceSchema, MonorepoServicesConfigSchema };

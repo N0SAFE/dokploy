@@ -16,6 +16,13 @@ import {
 	apiCreateMonorepo,
 	apiDeleteMonorepo,
 	apiFindMonorepo,
+	apiSaveBitbucketProviderMonorepo,
+	apiSaveDockerProviderMonorepo,
+	apiSaveDropProviderMonorepo,
+	apiSaveGiteaProviderMonorepo,
+	apiSaveGithubProviderMonorepo,
+	apiSaveGitlabProviderMonorepo,
+	apiSaveGitProviderMonorepo,
 	apiUpdateMonorepo,
 	apiUpdateMonorepoServices,
 	MonorepoServicesConfigSchema,
@@ -244,6 +251,154 @@ export const monorepoRouter = createTRPCRouter({
 				code: "NOT_IMPLEMENTED",
 				message: "Monorepo move operation not yet implemented",
 			});
+		}),
+
+	// Provider endpoints
+	saveGithubProvider: protectedProcedure
+		.input(apiSaveGithubProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "github",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveGitlabProvider: protectedProcedure
+		.input(apiSaveGitlabProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "gitlab",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveBitbucketProvider: protectedProcedure
+		.input(apiSaveBitbucketProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "bitbucket",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveGiteaProvider: protectedProcedure
+		.input(apiSaveGiteaProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "gitea",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveDockerProvider: protectedProcedure
+		.input(apiSaveDockerProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "docker",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveGitProvider: protectedProcedure
+		.input(apiSaveGitProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "git",
+				...rest,
+			});
+			return updatedMonorepo;
+		}),
+
+	saveDropProvider: protectedProcedure
+		.input(apiSaveDropProviderMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, ...rest } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				sourceType: "drop",
+				...rest,
+			});
+			return updatedMonorepo;
 		}),
 });
 

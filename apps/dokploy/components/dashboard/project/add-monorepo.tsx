@@ -58,7 +58,6 @@ const AddMonorepoSchema = z.object({
 				"App name supports lowercase letters, numbers, '-' and can only start and end letters, and does not support continuous '-'",
 		}),
 	description: z.string().optional(),
-	deploymentType: z.enum(["dockerfile", "docker-compose", "command"]),
 	serverId: z.string().optional(),
 });
 
@@ -84,7 +83,6 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 			name: "",
 			appName: `${slug}-`,
 			description: "",
-			deploymentType: "dockerfile",
 		},
 		resolver: zodResolver(AddMonorepoSchema),
 	});
@@ -94,7 +92,6 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 			name: data.name,
 			appName: data.appName,
 			description: data.description,
-			deploymentType: data.deploymentType,
 			projectId,
 			serverId: data.serverId,
 		})
@@ -126,8 +123,7 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 				<DialogHeader>
 					<DialogTitle>Create Monorepo</DialogTitle>
 					<DialogDescription>
-						Create a monorepo to manage multiple applications in a single
-						repository
+						Create a monorepo to manage multiple services with individual build types and configurations
 					</DialogDescription>
 				</DialogHeader>
 				{isError && <AlertBlock type="error">{error?.message}</AlertBlock>}
@@ -224,31 +220,6 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 									<FormControl>
 										<Input placeholder="my-monorepo" {...field} />
 									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="deploymentType"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Deployment Type</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										defaultValue={field.value}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select deployment type" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="dockerfile">Dockerfile</SelectItem>
-											<SelectItem value="docker-compose">
-												Docker Compose
-											</SelectItem>
-											<SelectItem value="command">Command</SelectItem>
-										</SelectContent>
-									</Select>
 									<FormMessage />
 								</FormItem>
 							)}
