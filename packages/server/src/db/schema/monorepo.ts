@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, integer, json, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -33,6 +33,27 @@ export const deploymentType = pgEnum("deploymentType", [
 	"docker-compose",
 	"command",
 ]);
+
+export interface MonorepoService {
+	id: string;
+	name: string;
+	appName: string;
+	description?: string;
+	port?: number;
+	domains?: string[];
+	env?: string;
+	dockerfile?: string;
+	dockerContextPath?: string;
+	dockerBuildStage?: string;
+	buildPath?: string;
+	command?: string;
+	healthCheckPath?: string;
+	enabled: boolean;
+}
+
+export interface MonorepoServicesConfig {
+	services: MonorepoService[];
+}
 
 export const monorepo = pgTable("monorepo", {
 	monorepoId: text("monorepoId")
@@ -83,6 +104,11 @@ export const monorepo = pgTable("monorepo", {
 	previewRequireCollaboratorPermissions: boolean(
 		"previewRequireCollaboratorPermissions",
 	).default(true),
+
+	// Services configuration for multiple services in monorepo
+	servicesConfig: json("servicesConfig").$type<MonorepoServicesConfig>().default({
+		services: []
+	}),
 
 	// Git provider fields
 	repository: text("repository"),
@@ -181,6 +207,27 @@ export const monorepoRelations = relations(monorepo, ({ one, many }) => ({
 	previewDeployments: many(previewDeployments),
 }));
 
+const MonorepoServiceSchema = z.object({
+	id: z.string(),
+	name: z.string().min(1, "Service name is required"),
+	appName: z.string().min(1, "App name is required"),
+	description: z.string().optional(),
+	port: z.number().int().min(1).max(65535).optional(),
+	domains: z.array(z.string()).optional(),
+	env: z.string().optional(),
+	dockerfile: z.string().optional(),
+	dockerContextPath: z.string().optional(),
+	dockerBuildStage: z.string().optional(),
+	buildPath: z.string().optional(),
+	command: z.string().optional(),
+	healthCheckPath: z.string().optional(),
+	enabled: z.boolean().default(true),
+});
+
+const MonorepoServicesConfigSchema = z.object({
+	services: z.array(MonorepoServiceSchema),
+});
+
 const createSchema = createInsertSchema(monorepo, {
 	name: z.string().min(1),
 	description: z.string().optional(),
@@ -204,6 +251,7 @@ const createSchema = createInsertSchema(monorepo, {
 	previewPath: z.string().optional(),
 	previewCertificateType: z.enum(["letsencrypt", "none", "custom"]).optional(),
 	previewRequireCollaboratorPermissions: z.boolean().optional(),
+	servicesConfig: MonorepoServicesConfigSchema.optional(),
 });
 
 export const apiCreateMonorepo = createSchema.pick({
@@ -238,3 +286,10 @@ export const apiRandomizeMonorepo = createSchema
 	.extend({
 		monorepoId: z.string().min(1),
 	});
+
+export const apiUpdateMonorepoServices = z.object({
+	monorepoId: z.string().min(1),
+	servicesConfig: MonorepoServicesConfigSchema,
+});
+
+export { MonorepoServiceSchema, MonorepoServicesConfigSchema };

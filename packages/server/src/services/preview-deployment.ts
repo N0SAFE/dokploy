@@ -25,7 +25,7 @@ export type PreviewDeployment = typeof previewDeployments.$inferSelect;
 export const findPreviewDeploymentById = async (
 	previewDeploymentId: string,
 ) => {
-	const application = await db.query.previewDeployments.findFirst({
+	const previewDeployment = await db.query.previewDeployments.findFirst({
 		where: eq(previewDeployments.previewDeploymentId, previewDeploymentId),
 		with: {
 			domain: true,
@@ -35,15 +35,21 @@ export const findPreviewDeploymentById = async (
 					project: true,
 				},
 			},
+			monorepo: {
+				with: {
+					server: true,
+					project: true,
+				},
+			},
 		},
 	});
-	if (!application) {
+	if (!previewDeployment) {
 		throw new TRPCError({
 			code: "NOT_FOUND",
 			message: "Preview Deployment not found",
 		});
 	}
-	return application;
+	return previewDeployment;
 };
 
 export const findApplicationByPreview = async (applicationId: string) => {
@@ -140,6 +146,22 @@ export const findPreviewDeploymentsByApplicationId = async (
 ) => {
 	const deploymentsList = await db.query.previewDeployments.findMany({
 		where: eq(previewDeployments.applicationId, applicationId),
+		orderBy: desc(previewDeployments.createdAt),
+		with: {
+			deployments: {
+				orderBy: desc(deployments.createdAt),
+			},
+			domain: true,
+		},
+	});
+	return deploymentsList;
+};
+
+export const findPreviewDeploymentsByMonorepoId = async (
+	monorepoId: string,
+) => {
+	const deploymentsList = await db.query.previewDeployments.findMany({
+		where: eq(previewDeployments.monorepoId, monorepoId),
 		orderBy: desc(previewDeployments.createdAt),
 		with: {
 			deployments: {

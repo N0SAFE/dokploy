@@ -17,6 +17,8 @@ import {
 	apiDeleteMonorepo,
 	apiFindMonorepo,
 	apiUpdateMonorepo,
+	apiUpdateMonorepoServices,
+	MonorepoServicesConfigSchema,
 } from "@/server/db/schema";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
@@ -142,6 +144,41 @@ export const monorepoRouter = createTRPCRouter({
 			const newWebhookToken = nanoid();
 			await updateMonorepoToken(input.monorepoId, newWebhookToken);
 			return newWebhookToken;
+		}),
+
+	updateServices: protectedProcedure
+		.input(apiUpdateMonorepoServices)
+		.mutation(async ({ input, ctx }) => {
+			const { monorepoId, servicesConfig } = input;
+			const monorepo = await findMonorepoById(monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to update this monorepo",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(monorepoId, {
+				servicesConfig,
+			});
+			return updatedMonorepo;
+		}),
+
+	getServices: protectedProcedure
+		.input(apiFindMonorepo)
+		.query(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to access this monorepo",
+				});
+			}
+			return monorepo.servicesConfig || { services: [] };
 		}),
 
 	start: protectedProcedure
