@@ -8,6 +8,7 @@ import {
 	ChevronsUpDown,
 	CircuitBoard,
 	FolderInput,
+	GitBranch,
 	GlobeIcon,
 	Loader2,
 	PlusIcon,
@@ -29,6 +30,7 @@ import { AddAiAssistant } from "@/components/dashboard/project/add-ai-assistant"
 import { AddApplication } from "@/components/dashboard/project/add-application";
 import { AddCompose } from "@/components/dashboard/project/add-compose";
 import { AddDatabase } from "@/components/dashboard/project/add-database";
+import { AddMonorepo } from "@/components/dashboard/project/add-monorepo";
 import { AddTemplate } from "@/components/dashboard/project/add-template";
 import { DuplicateProject } from "@/components/dashboard/project/duplicate-project";
 import { ProjectEnvironment } from "@/components/dashboard/projects/project-environment";
@@ -105,7 +107,8 @@ export type Services = {
 		| "mysql"
 		| "mongo"
 		| "redis"
-		| "compose";
+		| "compose"
+		| "monorepo";
 	description?: string | null;
 	id: string;
 	createdAt: string;
@@ -199,6 +202,18 @@ export const extractServices = (data: Project | undefined) => {
 			serverId: item.serverId,
 		})) || [];
 
+	const monorepo: Services[] =
+		data?.monorepo?.map((item) => ({
+			appName: item.appName,
+			name: item.name,
+			type: "monorepo",
+			id: item.monorepoId,
+			createdAt: item.createdAt,
+			status: item.monorepoStatus,
+			description: item.description,
+			serverId: item.serverId,
+		})) || [];
+
 	applications.push(
 		...mysql,
 		...redis,
@@ -206,6 +221,7 @@ export const extractServices = (data: Project | undefined) => {
 		...postgres,
 		...mariadb,
 		...compose,
+		...monorepo,
 	);
 
 	applications.sort((a, b) => {
@@ -269,7 +285,8 @@ const Project = (
 		data?.postgres?.length === 0 &&
 		data?.redis?.length === 0 &&
 		data?.applications?.length === 0 &&
-		data?.compose?.length === 0;
+		data?.compose?.length === 0 &&
+		data?.monorepo?.length === 0;
 
 	const applications = extractServices(data);
 
@@ -282,6 +299,7 @@ const Project = (
 		{ value: "mysql", label: "MySQL", icon: MysqlIcon },
 		{ value: "redis", label: "Redis", icon: RedisIcon },
 		{ value: "compose", label: "Compose", icon: CircuitBoard },
+		{ value: "monorepo", label: "Monorepo", icon: GitBranch },
 	];
 
 	const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -355,6 +373,25 @@ const Project = (
 		delete: api.mongo.remove.useMutation(),
 	};
 
+	const monorepoActions = {
+		start: {
+			mutateAsync: async (input: { monorepoId: string }) => {
+				return Promise.reject(new Error("Monorepo start not implemented"));
+			}
+		},
+		stop: {
+			mutateAsync: async (input: { monorepoId: string }) => {
+				return Promise.reject(new Error("Monorepo stop not implemented"));
+			}
+		},
+		move: {
+			mutateAsync: async (input: { monorepoId: string; targetProjectId: string }) => {
+				return Promise.reject(new Error("Monorepo move not implemented"));
+			}
+		},
+		delete: api.monorepo.remove.useMutation(),
+	};
+
 	const handleBulkStart = async () => {
 		let success = 0;
 		setIsBulkActionLoading(true);
@@ -386,6 +423,9 @@ const Project = (
 						break;
 					case "mongo":
 						await mongoActions.start.mutateAsync({ mongoId: serviceId });
+						break;
+					case "monorepo":
+						await monorepoActions.start.mutateAsync({ monorepoId: serviceId });
 						break;
 				}
 				success++;
@@ -433,6 +473,9 @@ const Project = (
 						break;
 					case "mongo":
 						await mongoActions.stop.mutateAsync({ mongoId: serviceId });
+						break;
+					case "monorepo":
+						await monorepoActions.stop.mutateAsync({ monorepoId: serviceId });
 						break;
 				}
 				success++;
@@ -505,6 +548,12 @@ const Project = (
 							targetProjectId: selectedTargetProject,
 						});
 						break;
+					case "monorepo":
+						await monorepoActions.move.mutateAsync({
+							monorepoId: serviceId,
+							targetProjectId: selectedTargetProject,
+						});
+						break;
 				}
 				success++;
 			} catch (error) {
@@ -566,6 +615,12 @@ const Project = (
 					case "mongo":
 						await mongoActions.delete.mutateAsync({
 							mongoId: serviceId,
+						});
+						break;
+					case "monorepo":
+						await monorepoActions.delete.mutateAsync({
+							monorepoId: serviceId,
+							deleteVolumes: false,
 						});
 						break;
 				}
@@ -641,6 +696,10 @@ const Project = (
 											</DropdownMenuLabel>
 											<DropdownMenuSeparator />
 											<AddApplication
+												projectId={projectId}
+												projectName={data?.name}
+											/>
+											<AddMonorepo
 												projectId={projectId}
 												projectName={data?.name}
 											/>
@@ -1033,6 +1092,9 @@ const Project = (
 																			)}
 																			{service.type === "compose" && (
 																				<CircuitBoard className="h-6 w-6" />
+																			)}
+																			{service.type === "monorepo" && (
+																				<GitBranch className="h-6 w-6" />
 																			)}
 																		</span>
 																	</div>

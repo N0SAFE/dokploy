@@ -25,8 +25,8 @@ export const monorepoRouter = createTRPCRouter({
 		.input(apiCreateMonorepo)
 		.mutation(async ({ input, ctx }) => {
 			try {
-				if (ctx.user.rol === "user") {
-					await checkServiceAccess(input.projectId, ctx.user.authId, "create");
+				if (ctx.user.role === "member") {
+					await checkServiceAccess(input.projectId, ctx.user.id, "create");
 				}
 
 				const newMonorepo = await createMonorepo(input);
@@ -142,6 +142,69 @@ export const monorepoRouter = createTRPCRouter({
 			const newWebhookToken = nanoid();
 			await updateMonorepoToken(input.monorepoId, newWebhookToken);
 			return newWebhookToken;
+		}),
+
+	start: protectedProcedure
+		.input(apiFindMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to start this monorepo",
+				});
+			}
+
+			// TODO: Implement monorepo start logic
+			throw new TRPCError({
+				code: "NOT_IMPLEMENTED",
+				message: "Monorepo start operation not yet implemented",
+			});
+		}),
+
+	stop: protectedProcedure
+		.input(apiFindMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to stop this monorepo",
+				});
+			}
+
+			// TODO: Implement monorepo stop logic
+			throw new TRPCError({
+				code: "NOT_IMPLEMENTED",
+				message: "Monorepo stop operation not yet implemented",
+			});
+		}),
+
+	move: protectedProcedure
+		.input(z.object({
+			monorepoId: z.string(),
+			targetProjectId: z.string(),
+		}))
+		.mutation(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to move this monorepo",
+				});
+			}
+
+			// TODO: Implement monorepo move logic
+			throw new TRPCError({
+				code: "NOT_IMPLEMENTED",
+				message: "Monorepo move operation not yet implemented",
+			});
 		}),
 });
 

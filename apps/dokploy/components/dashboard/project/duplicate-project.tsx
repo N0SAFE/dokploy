@@ -28,7 +28,8 @@ export type Services = {
 		| "mysql"
 		| "mongo"
 		| "redis"
-		| "compose";
+		| "compose"
+		| "monorepo";
 	description?: string | null;
 	id: string;
 	createdAt: string;
