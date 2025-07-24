@@ -1,11 +1,15 @@
 import type { WriteStream } from "node:fs";
 import { prepareEnvironmentVariables } from "@dokploy/server/utils/docker/utils";
-import type { ApplicationNested } from ".";
 import {
 	getBuildAppDirectory,
 	getDockerContextPath,
 } from "../filesystem/directory";
 import { spawnAsync } from "../process/spawnAsync";
+import { createApplicationContext, EnvVariableGenerator } from "../env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
+import { findProjectById } from "@dokploy/server/services/project";
+import { createDetailedServicesFromProject } from "../env-generator/helpers";
+import type { ApplicationNested } from ".";
 import { createEnvFile, createEnvFileCommand } from "./utils";
 
 export const buildCustomDocker = async (
@@ -22,13 +26,32 @@ export const buildCustomDocker = async (
 	} = application;
 	const dockerFilePath = getBuildAppDirectory(application);
 	try {
+		console.log(`Building custom Docker for ${appName}...`);
+		writeStream.write(`Building custom Docker for ${appName}...\n`);
 		const image = `${appName}`;
 
 		const defaultContextPath =
 			dockerFilePath.substring(0, dockerFilePath.lastIndexOf("/") + 1) || ".";
+		
+		// Generate environment variables for this application
+		const domains = await findDomainsByApplicationId(application.applicationId);
+		const fullProject = await findProjectById(application.projectId);
+		const context = createApplicationContext(application, domains);
+		context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+		console.log(`Context for application ${application.applicationId}:`, context);
+		const generator = new EnvVariableGenerator(context);
+		const generatedVars = generator.generateAll();
+		
+		console.log(`Generated environment variables for application ${application.applicationId}:`, generatedVars);
+		console.log('generating env variables for docker build', {
+			buildArgs,
+			projectEnv: application.project.env,
+			generatedVars,
+		});
 		const args = prepareEnvironmentVariables(
 			buildArgs,
 			application.project.env,
+			generatedVars,
 		);
 
 		const dockerContextPath = getDockerContextPath(application);
@@ -51,7 +74,7 @@ export const buildCustomDocker = async (
 			as it could be publicly exposed.
 		*/
 		if (!publishDirectory) {
-			createEnvFile(dockerFilePath, env, application.project.env);
+			createEnvFile(dockerFilePath, env, application.project.env, generatedVars);
 		}
 
 		await spawnAsync(
@@ -71,7 +94,7 @@ export const buildCustomDocker = async (
 	}
 };
 
-export const getDockerCommand = (
+export const getDockerCommand = async (
 	application: ApplicationNested,
 	logPath: string,
 ) => {
@@ -90,9 +113,19 @@ export const getDockerCommand = (
 
 		const defaultContextPath =
 			dockerFilePath.substring(0, dockerFilePath.lastIndexOf("/") + 1) || ".";
+		
+		// Generate environment variables for this application
+		const domains = await findDomainsByApplicationId(application.applicationId);
+		const fullProject = await findProjectById(application.projectId);
+		const context = createApplicationContext(application, domains);
+		context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+		const generator = new EnvVariableGenerator(context);
+		const generatedVars = generator.generateAll();
+		
 		const args = prepareEnvironmentVariables(
 			buildArgs,
 			application.project.env,
+			generatedVars,
 		);
 
 		const dockerContextPath =
@@ -122,6 +155,7 @@ export const getDockerCommand = (
 				dockerFilePath,
 				env,
 				application.project.env,
+				generatedVars,
 			);
 		}
 

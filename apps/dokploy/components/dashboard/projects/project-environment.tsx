@@ -1,3 +1,9 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FileIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { AlertBlock } from "@/components/shared/alert-block";
 import { CodeEditor } from "@/components/shared/code-editor";
 import { Button } from "@/components/ui/button";
@@ -20,12 +26,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { api } from "@/utils/api";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { FileIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
+import { ShowEvaluatedProjectEnvironment } from "./show-evaluated-project-env";
 
 const updateProjectSchema = z.object({
 	env: z.string().optional(),
@@ -58,6 +59,10 @@ export const ProjectEnvironment = ({ projectId, children }: Props) => {
 		},
 		resolver: zodResolver(updateProjectSchema),
 	});
+
+	// Watch form values for real-time preview
+	const currentEnv = form.watch("env");
+
 	useEffect(() => {
 		if (data) {
 			form.reset({
@@ -147,6 +152,10 @@ PORT=3000
 							</form>
 						</Form>
 					</div>
+					<ShowEvaluatedProjectEnvironment 
+						projectId={projectId} 
+						env={currentEnv}
+					/>
 				</div>
 			</DialogContent>
 		</Dialog>

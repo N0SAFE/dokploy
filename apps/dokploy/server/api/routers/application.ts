@@ -1,31 +1,4 @@
 import {
-	createTRPCRouter,
-	protectedProcedure,
-	uploadProcedure,
-} from "@/server/api/trpc";
-import { db } from "@/server/db";
-import {
-	apiCreateApplication,
-	apiFindMonitoringStats,
-	apiFindOneApplication,
-	apiReloadApplication,
-	apiSaveBitbucketProvider,
-	apiSaveBuildType,
-	apiSaveDockerProvider,
-	apiSaveEnvironmentVariables,
-	apiSaveGitProvider,
-	apiSaveGiteaProvider,
-	apiSaveGithubProvider,
-	apiSaveGitlabProvider,
-	apiUpdateApplication,
-	applications,
-} from "@/server/db/schema";
-import type { DeploymentJob } from "@/server/queues/queue-types";
-import { cleanQueuesByApplication, myQueue } from "@/server/queues/queueSetup";
-import { deploy } from "@/server/utils/deploy";
-import { uploadFileSchema } from "@/utils/schema";
-import {
-	IS_CLOUD,
 	addNewService,
 	checkServiceAccess,
 	createApplication,
@@ -34,7 +7,9 @@ import {
 	findGitProviderById,
 	findProjectById,
 	getApplicationStats,
+	IS_CLOUD,
 	mechanizeDockerContainer,
+	prepareEnvironmentVariables,
 	readConfig,
 	readRemoteConfig,
 	removeDeployments,
@@ -53,10 +28,42 @@ import {
 	writeConfigRemote,
 	// uploadFileSchema
 } from "@dokploy/server";
+import {
+	createApplicationContext,
+	createDetailedServicesFromProject,
+	EnvVariableGenerator,
+} from "@dokploy/server/utils/env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import {
+	createTRPCRouter,
+	protectedProcedure,
+	uploadProcedure,
+} from "@/server/api/trpc";
+import { db } from "@/server/db";
+import {
+	apiCreateApplication,
+	apiFindMonitoringStats,
+	apiFindOneApplication,
+	apiReloadApplication,
+	apiSaveBitbucketProvider,
+	apiSaveBuildType,
+	apiSaveDockerProvider,
+	apiSaveEnvironmentVariables,
+	apiSaveGiteaProvider,
+	apiSaveGithubProvider,
+	apiSaveGitlabProvider,
+	apiSaveGitProvider,
+	apiUpdateApplication,
+	applications,
+} from "@/server/db/schema";
+import type { DeploymentJob } from "@/server/queues/queue-types";
+import { cleanQueuesByApplication, myQueue } from "@/server/queues/queueSetup";
+import { deploy } from "@/server/utils/deploy";
+import { uploadFileSchema } from "@/utils/schema";
 
 export const applicationRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -343,6 +350,154 @@ export const applicationRouter = createTRPCRouter({
 				buildArgs: input.buildArgs,
 			});
 			return true;
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiSaveEnvironmentVariables.pick({ applicationId: true }).extend({
+			env: z.string().optional(),
+			projectEnv: z.string().optional(),
+			previewEnv: z.string().optional(),
+		}))
+		.query(async ({ input, ctx }) => {
+			const application = await findApplicationById(input.applicationId);
+			if (
+				application.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this environment",
+				});
+			}
+
+			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : application.env;
+				const projectEnvToEvaluate = input.projectEnv !== undefined ? input.projectEnv : application.project.env;
+				const previewEnvToEvaluate = input.previewEnv !== undefined ? input.previewEnv : application.previewEnv;
+
+				// Generate dynamic environment variables first so they can be used in resolution
+				const domains = await findDomainsByApplicationId(input.applicationId);
+				
+				// Get full project with all services for comprehensive service variables
+				const fullProject = await findProjectById(application.projectId);
+				
+				const context = createApplicationContext(application, domains);
+				// Add detailed services to context
+				context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+				
+				const generator = new EnvVariableGenerator(context);
+				const generatedVars = generator.generateAll();
+
+				// Evaluate regular environment variables with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					projectEnvToEvaluate,
+					generatedVars,
+				);
+
+				// Evaluate preview environment variables (only if preview deployments are active)
+				let previewEvaluatedVars = {};
+				let previewGeneratedVars = [];
+				if (application.isPreviewDeploymentsActive) {
+					// For preview deployments, generate preview-specific variables
+					const previewContext = { ...context };
+					
+					// Add preview-specific variables to the generated vars
+					const previewSpecificVars = [
+						{
+							key: "DOKPLOY_DEPLOY_URL",
+							value: `preview-${application.appName}.${context.project.name}.example.com`,
+							description: "Preview deployment URL",
+							category: "preview"
+						},
+						{
+							key: "PREVIEW_BRANCH",
+							value: "feature-branch",
+							description: "Preview deployment branch name",
+							category: "preview"
+						}
+					];
+
+					// Generate preview versions of all existing environment variables
+					const envToAnalyze = previewEnvToEvaluate || envToEvaluate || "";
+					const projectEnvToAnalyze = projectEnvToEvaluate || "";
+					
+					// Parse environment variables to create preview versions
+					const parseEnvVars = (envString: string) => {
+						if (!envString) return [];
+						return envString.split('\n')
+							.filter(line => line.trim() && !line.trim().startsWith('#'))
+							.map(line => {
+								const [key, ...valueParts] = line.split('=');
+								return { key: key?.trim(), value: valueParts.join('=') };
+							})
+							.filter(({ key, value }) => key && value !== undefined);
+					};
+
+					const serviceVars = parseEnvVars(envToAnalyze);
+					const projectVars = parseEnvVars(projectEnvToAnalyze);
+					const allVars = [...serviceVars, ...projectVars];
+
+					// Create preview versions of existing variables
+					const previewVersions = allVars.map(({ key, value }) => {
+						// Generate preview-specific value based on the original
+						let previewValue = value;
+						
+						// For common patterns, adjust the preview value
+						if (value.includes('localhost')) {
+							previewValue = value.replace('localhost', `localhost-preview-${application.appName}`);
+						} else if (value.match(/^\d+$/)) {
+							// If it's just a number (like a port), add a preview offset
+							const port = parseInt(value, 10);
+							previewValue = (port + 10000).toString(); // Preview ports start from +10000
+						} else if (value.includes('://')) {
+							// If it's a URL, add preview prefix
+							previewValue = value.replace('://', `://preview-${application.appName}-`);
+						} else {
+							// For other values, add a preview suffix
+							previewValue = `${value}-preview-${application.appName}`;
+						}
+
+						return {
+							key: `${key}_PREVIEW`,
+							value: previewValue,
+							description: `Preview deployment version of ${key}`,
+							category: "preview"
+						};
+					});
+
+					previewGeneratedVars = [...generatedVars, ...previewSpecificVars, ...previewVersions];
+					
+					if (previewEnvToEvaluate) {
+						previewEvaluatedVars = prepareEnvironmentVariables(
+							previewEnvToEvaluate,
+							projectEnvToEvaluate,
+							previewGeneratedVars,
+						);
+					}
+				}
+
+				return {
+					rawEnvironment: envToEvaluate || "",
+					projectEnvironment: projectEnvToEvaluate || "",
+					evaluatedEnvironment: evaluatedVars,
+					generatedVariables: generatedVars,
+					// Add preview-specific data
+					previewEnvironment: previewEnvToEvaluate || "",
+					previewEvaluatedEnvironment: previewEvaluatedVars,
+					previewGeneratedVariables: previewGeneratedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: input.env !== undefined ? input.env : application.env || "",
+					projectEnvironment: input.projectEnv !== undefined ? input.projectEnv : application.project.env || "",
+					evaluatedEnvironment: {},
+					generatedVariables: [],
+					previewEnvironment: input.previewEnv !== undefined ? input.previewEnv : application.previewEnv || "",
+					previewEvaluatedEnvironment: {},
+					previewGeneratedVariables: [],
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
+			}
 		}),
 	saveBuildType: protectedProcedure
 		.input(apiSaveBuildType)

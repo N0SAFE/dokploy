@@ -1,3 +1,9 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Settings2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -19,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input, NumberInput } from "@/components/ui/input";
 import { Secrets } from "@/components/ui/secrets";
+import { ShowEvaluatedEnvironment } from "@/components/dashboard/application/environment/show-evaluated-env";
 import {
 	Select,
 	SelectContent,
@@ -28,12 +35,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/utils/api";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Settings2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
 
 const schema = z
 	.object({
@@ -369,6 +370,15 @@ export const ShowPreviewSettings = ({ applicationId }: Props) => {
 										</FormItem>
 									)}
 								/>
+								
+								{/* Environment Variable Preview for Preview Deployments */}
+								<div className="col-span-full">
+									<ShowEvaluatedEnvironment
+										applicationId={applicationId}
+										previewEnv={form.watch("env")}
+										projectEnv={data?.project?.env}
+									/>
+								</div>
 								{data?.buildType === "dockerfile" && (
 									<Secrets
 										name="buildArgs"

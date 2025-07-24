@@ -1,23 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { db } from "@/server/db";
 import {
-	apiCreateProject,
-	apiFindOneProject,
-	apiRemoveProject,
-	apiUpdateProject,
-	applications,
-	compose,
-	mariadb,
-	mongo,
-	mysql,
-	postgres,
-	projects,
-	redis,
-} from "@/server/db/schema";
-import { z } from "zod";
-
-import {
-	IS_CLOUD,
 	addNewProject,
 	checkProjectAccess,
 	createApplication,
@@ -46,11 +27,36 @@ import {
 	findProjectById,
 	findRedisById,
 	findUserById,
+	IS_CLOUD,
+	prepareEnvironmentVariables,
 	updateProjectById,
 } from "@dokploy/server";
+import {
+	createDetailedServicesFromProject,
+	createProjectContext,
+	EnvVariableGenerator,
+} from "@dokploy/server/utils/env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { z } from "zod";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { db } from "@/server/db";
+import {
+	apiCreateProject,
+	apiFindOneProject,
+	apiRemoveProject,
+	apiUpdateProject,
+	applications,
+	compose,
+	mariadb,
+	mongo,
+	mysql,
+	postgres,
+	projects,
+	redis,
+} from "@/server/db/schema";
 
 export const projectRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -284,6 +290,144 @@ export const projectRouter = createTRPCRouter({
 				return project;
 			} catch (error) {
 				throw error;
+			}
+		}),
+	evaluateEnvironmentVariables: protectedProcedure
+		.input(apiFindOneProject.extend({
+			env: z.string().optional(),
+		}))
+		.query(async ({ input, ctx }) => {
+			const project = await findProjectById(input.projectId);
+			if (project.organizationId !== ctx.session.activeOrganizationId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to view this project environment",
+				});
+			}
+
+			try {
+				// Use provided env vars or fall back to database values
+				const envToEvaluate = input.env !== undefined ? input.env : project.env;
+
+				// Generate dynamic environment variables for the project first
+				// Get project applications and services for context
+				const allApplications = await db.query.applications.findMany({
+					where: eq(applications.projectId, input.projectId),
+					with: {
+						ports: true,
+					},
+				});
+
+				const allServices = await Promise.all([
+					db.query.postgres.findMany({
+						where: eq(postgres.projectId, input.projectId),
+					}),
+					db.query.mysql.findMany({
+						where: eq(mysql.projectId, input.projectId),
+					}),
+					db.query.mariadb.findMany({
+						where: eq(mariadb.projectId, input.projectId),
+					}),
+					db.query.redis.findMany({
+						where: eq(redis.projectId, input.projectId),
+					}),
+					db.query.mongo.findMany({
+						where: eq(mongo.projectId, input.projectId),
+					}),
+				]);
+
+				// Flatten services
+				const flatServices = allServices.flat().map((service) => {
+					const serviceType = 
+						'databaseName' in service ? 
+							('postgresId' in service ? 'postgres' : 
+							 'mysqlId' in service ? 'mysql' : 
+							 'mariadbId' in service ? 'mariadb' : 'mongo') :
+						'redis';
+					
+					const serviceId = 
+						'postgresId' in service ? service.postgresId :
+						'mysqlId' in service ? service.mysqlId :
+						'mariadbId' in service ? service.mariadbId :
+						'mongoId' in service ? service.mongoId :
+						service.redisId;
+
+					return {
+						id: serviceId,
+						name: service.name,
+						type: serviceType as "postgres" | "mysql" | "mariadb" | "redis" | "mongo",
+						appName: service.appName,
+					};
+				});
+
+				// Get application domains
+				const applicationData = await Promise.all(
+					allApplications.map(async (app) => {
+						const domains = await findDomainsByApplicationId(app.applicationId);
+						return {
+							applicationId: app.applicationId,
+							name: app.name,
+							appName: app.appName,
+							domains: domains.map((domain) => ({
+								domainId: domain.domainId,
+								host: domain.host,
+								https: domain.https,
+								port: domain.port,
+								path: domain.path,
+							})),
+							ports: (app.ports || []).map((port) => ({
+								portId: port.portId,
+								publishedPort: port.publishedPort,
+								targetPort: port.targetPort,
+								protocol: port.protocol,
+							})),
+						};
+					})
+				);
+
+				const serviceData = flatServices.map((service) => ({
+					id: service.id,
+					name: service.name,
+					type: service.type,
+					appName: service.appName,
+					domains: [], // Services typically don't have domains directly
+				}));
+
+				// Create project context for generating variables
+				const context = createProjectContext({
+					projectId: project.projectId,
+					name: project.name,
+					env: project.env,
+					applications: applicationData,
+					services: serviceData,
+				});
+				
+				// Add detailed services to context for comprehensive service variables
+				context.project.detailedServices = createDetailedServicesFromProject(project);
+
+				const generator = new EnvVariableGenerator(context);
+				const generatedVars = generator.generateAll();
+
+				// For project-level evaluation, resolve variables within the project scope
+				// with access to generated variables
+				const evaluatedVars = prepareEnvironmentVariables(
+					envToEvaluate,
+					null, // No parent environment for projects
+					generatedVars,
+				);
+
+				return {
+					rawEnvironment: envToEvaluate || "",
+					evaluatedEnvironment: evaluatedVars,
+					generatedVariables: generatedVars,
+				};
+			} catch (error) {
+				return {
+					rawEnvironment: input.env !== undefined ? input.env : project.env || "",
+					evaluatedEnvironment: {},
+					generatedVariables: [],
+					error: error instanceof Error ? error.message : "Unknown error occurred while evaluating environment variables",
+				};
 			}
 		}),
 	duplicate: protectedProcedure

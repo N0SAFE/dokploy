@@ -1,13 +1,14 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
-import { Secrets } from "@/components/ui/secrets";
-import { api } from "@/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Form } from "@/components/ui/form";
+import { Secrets } from "@/components/ui/secrets";
+import { api } from "@/utils/api";
+import { ShowEvaluatedEnvironment } from "./show-evaluated-env";
 
 const addEnvironmentSchema = z.object({
 	env: z.string(),
@@ -80,12 +81,13 @@ export const ShowEnvironment = ({ applicationId }: Props) => {
 	};
 
 	return (
-		<Card className="bg-background px-6 pb-6">
-			<Form {...form}>
-				<form
-					onSubmit={form.handleSubmit(onSubmit)}
-					className="flex w-full flex-col gap-4"
-				>
+		<div className="space-y-6">
+			<Card className="bg-background px-6 pb-6">
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="flex w-full flex-col gap-4"
+					>
 					<Secrets
 						name="env"
 						title="Environment Settings"
@@ -137,8 +139,15 @@ export const ShowEnvironment = ({ applicationId }: Props) => {
 							Save
 						</Button>
 					</div>
-				</form>
-			</Form>
-		</Card>
+					</form>
+				</Form>
+			</Card>
+			<ShowEvaluatedEnvironment 
+				applicationId={applicationId} 
+				env={currentEnv}
+				projectEnv={data?.project?.env}
+				previewEnv={data?.previewEnv}
+			/>
+		</div>
 	);
 };

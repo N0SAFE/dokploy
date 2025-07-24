@@ -1,3 +1,5 @@
+import { ChevronsUpDown } from "lucide-react";
+import { useRouter } from "next/router";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
 	DropdownMenu,
@@ -19,8 +21,6 @@ import { authClient } from "@/lib/auth-client";
 import { Languages } from "@/lib/languages";
 import { api } from "@/utils/api";
 import useLocale from "@/utils/hooks/use-locale";
-import { ChevronsUpDown } from "lucide-react";
-import { useRouter } from "next/router";
 import { ModeToggle } from "../ui/modeToggle";
 import { SidebarMenuButton } from "../ui/sidebar";
 

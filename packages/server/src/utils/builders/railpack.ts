@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { WriteStream } from "node:fs";
 import { nanoid } from "nanoid";
-import type { ApplicationNested } from ".";
 import {
 	parseEnvironmentKeyValuePair,
 	prepareEnvironmentVariables,
@@ -9,6 +8,11 @@ import {
 import { getBuildAppDirectory } from "../filesystem/directory";
 import { execAsync } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { createApplicationContext, EnvVariableGenerator } from "../env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
+import { findProjectById } from "@dokploy/server/services/project";
+import { createDetailedServicesFromProject } from "../env-generator/helpers";
+import type { ApplicationNested } from ".";
 
 const calculateSecretsHash = (envVariables: string[]): string => {
 	const hash = createHash("sha256");
@@ -24,9 +28,19 @@ export const buildRailpack = async (
 ) => {
 	const { env, appName, cleanCache } = application;
 	const buildAppDirectory = getBuildAppDirectory(application);
+	
+	// Generate environment variables for this application
+	const domains = await findDomainsByApplicationId(application.applicationId);
+	const fullProject = await findProjectById(application.projectId);
+	const context = createApplicationContext(application, domains);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+	
 	const envVariables = prepareEnvironmentVariables(
 		env,
 		application.project.env,
+		generatedVars,
 	);
 
 	try {
@@ -113,15 +127,25 @@ export const buildRailpack = async (
 	}
 };
 
-export const getRailpackCommand = (
+export const getRailpackCommand = async (
 	application: ApplicationNested,
 	logPath: string,
 ) => {
 	const { env, appName, cleanCache } = application;
 	const buildAppDirectory = getBuildAppDirectory(application);
+	
+	// Generate environment variables for this application
+	const domains = await findDomainsByApplicationId(application.applicationId);
+	const fullProject = await findProjectById(application.projectId);
+	const context = createApplicationContext(application, domains);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+	
 	const envVariables = prepareEnvironmentVariables(
 		env,
 		application.project.env,
+		generatedVars,
 	);
 
 	// Prepare command

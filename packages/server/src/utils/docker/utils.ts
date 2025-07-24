@@ -259,29 +259,105 @@ export const removeService = async (
 export const prepareEnvironmentVariables = (
 	serviceEnv: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
 	const projectVars = parse(projectEnv ?? "");
 	const serviceVars = parse(serviceEnv ?? "");
+	
+	// Convert generated variables to a lookup object
+	const generatedVarsLookup: Record<string, string> = {};
+	if (generatedVars) {
+		for (const variable of generatedVars) {
+			generatedVarsLookup[variable.key] = variable.value;
+		}
+	}
 
-	const resolvedVars = Object.entries(serviceVars).map(([key, value]) => {
-		let resolvedValue = value;
-		if (projectVars) {
-			resolvedValue = value.replace(/\$\{\{project\.(.*?)\}\}/g, (_, ref) => {
+	// Function to resolve variables with circular dependency detection
+	const resolveVariables = (vars: Record<string, string>) => {
+		const resolvedVars: Record<string, string> = {};
+		const resolutionStack: string[] = [];
+
+		const resolveValue = (key: string, value: string): string => {
+			// Check for circular dependency
+			if (resolutionStack.includes(key)) {
+				throw new Error(
+					"Circular dependency detected in environment variables",
+				);
+			}
+
+			// If already resolved, return it
+			if (resolvedVars[key] !== undefined) {
+				return resolvedVars[key];
+			}
+
+			resolutionStack.push(key);
+
+			let resolvedValue = value;
+
+			// Replace project variables first (existing functionality)
+			resolvedValue = resolvedValue.replace(
+				/\$\{\{project\.(.*?)\}\}/g,
+				(_, ref) => {
+					if (projectVars[ref] !== undefined) {
+						return projectVars[ref];
+					}
+					throw new Error(
+						`Invalid project environment variable: project.${ref}`,
+					);
+				},
+			);
+
+			// Replace same-scope variables (enhanced functionality)
+			resolvedValue = resolvedValue.replace(/\$\{\{([^.}]+)\}\}/g, (_, ref) => {
+				console.log(`Resolving variable: ${key} = ${value}`);
+				console.log(`Resolving reference: ${ref}`);
+				// First try to find in service scope
+				if (vars[ref] !== undefined) {
+					console.log(`Found in service scope: ${ref}, value: ${vars[ref]}`);
+					return resolveValue(ref, vars[ref]);
+				}
+				// Second, try project scope if not found in service scope
 				if (projectVars[ref] !== undefined) {
+					console.log(`Found in project scope: ${ref}, value: ${projectVars[ref]}`);
 					return projectVars[ref];
 				}
-				throw new Error(`Invalid project environment variable: project.${ref}`);
+				// Third, try generated variables as fallback
+				if (generatedVarsLookup[ref] !== undefined) {
+					console.log(`Found in generated variables: ${ref}, value: ${generatedVarsLookup[ref]}`);
+					return generatedVarsLookup[ref];
+				}
+				throw new Error(`Invalid environment variable: ${ref}`);
 			});
-		}
-		return `${key}=${resolvedValue}`;
-	});
 
-	return resolvedVars;
+			resolutionStack.pop();
+			resolvedVars[key] = resolvedValue;
+			return resolvedValue;
+		};
+
+		console.trace("Resolving environment variables:", {
+			serviceVars,
+			projectVars,
+			generatedVarsLookup,
+		});
+
+		// Resolve all variables
+		for (const [key, value] of Object.entries(vars)) {
+			resolveValue(key, value);
+		}
+
+		return resolvedVars;
+	};
+
+	const resolved = resolveVariables(serviceVars);
+
+	return Object.entries(resolved).map(([key, value]) => `${key}=${value}`);
 };
 
 export const parseEnvironmentKeyValuePair = (
 	pair: string,
 ): [string, string] => {
+	console.log(`Parsing environment pair: ${pair}`);
+
 	const [key, ...valueParts] = pair.split("=");
 	if (!key || !valueParts.length) {
 		throw new Error(`Invalid environment variable pair: ${pair}`);
@@ -293,8 +369,9 @@ export const parseEnvironmentKeyValuePair = (
 export const getEnviromentVariablesObject = (
 	input: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
-	const envs = prepareEnvironmentVariables(input, projectEnv);
+	const envs = prepareEnvironmentVariables(input, projectEnv, generatedVars);
 
 	const jsonObject: Record<string, string> = {};
 

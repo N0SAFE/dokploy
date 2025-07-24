@@ -1,3 +1,18 @@
+import {
+	BookText,
+	CheckIcon,
+	ChevronsUpDown,
+	Globe,
+	HelpCircle,
+	LayoutGrid,
+	List,
+	Loader2,
+	PuzzleIcon,
+	SearchIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { GithubIcon } from "@/components/icons/data-tools-icons";
 import { AlertBlock } from "@/components/shared/alert-block";
 import {
@@ -54,21 +69,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { api } from "@/utils/api";
-import {
-	BookText,
-	CheckIcon,
-	ChevronsUpDown,
-	Globe,
-	HelpCircle,
-	LayoutGrid,
-	List,
-	Loader2,
-	PuzzleIcon,
-	SearchIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 const TEMPLATE_BASE_URL_KEY = "dokploy_template_base_url";
 

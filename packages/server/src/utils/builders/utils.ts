@@ -6,12 +6,13 @@ export const createEnvFile = (
 	directory: string,
 	env: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
 	const envFilePath = join(dirname(directory), ".env");
 	if (!existsSync(dirname(envFilePath))) {
 		mkdirSync(dirname(envFilePath), { recursive: true });
 	}
-	const envFileContent = prepareEnvironmentVariables(env, projectEnv).join(
+	const envFileContent = prepareEnvironmentVariables(env, projectEnv, generatedVars).join(
 		"\n",
 	);
 	writeFileSync(envFilePath, envFileContent);
@@ -21,8 +22,9 @@ export const createEnvFileCommand = (
 	directory: string,
 	env: string | null,
 	projectEnv?: string | null,
+	generatedVars?: Array<{ key: string; value: string }>,
 ) => {
-	const envFileContent = prepareEnvironmentVariables(env, projectEnv).join(
+	const envFileContent = prepareEnvironmentVariables(env, projectEnv, generatedVars).join(
 		"\n",
 	);
 

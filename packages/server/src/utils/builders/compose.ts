@@ -19,6 +19,8 @@ import {
 } from "../docker/utils";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { createComposeContext, EnvVariableGenerator, createDetailedServicesFromProject } from "../env-generator/env-generator";
+import { findProjectById } from "@dokploy/server/services/project";
 
 export type ComposeNested = InferResultType<
 	"compose",
@@ -31,7 +33,7 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		const { COMPOSE_PATH } = paths();
 		const command = createCommand(compose);
 		await writeDomainsToCompose(compose, domains);
-		createEnvFile(compose);
+		await createEnvFile(compose);
 
 		if (compose.isolatedDeployment) {
 			await execAsync(
@@ -100,7 +102,7 @@ export const getBuildComposeCommand = async (
 	const { COMPOSE_PATH } = paths(true);
 	const { sourceType, appName, mounts, composeType, domains } = compose;
 	const command = createCommand(compose);
-	const envCommand = getCreateEnvFileCommand(compose);
+	const envCommand = await getCreateEnvFileCommand(compose);
 	const projectPath = join(COMPOSE_PATH, compose.appName, "code");
 	const exportEnvCommand = getExportEnvCommand(compose);
 
@@ -182,7 +184,7 @@ export const createCommand = (compose: ComposeNested) => {
 	return command;
 };
 
-const createEnvFile = (compose: ComposeNested) => {
+const createEnvFile = async (compose: ComposeNested) => {
 	const { COMPOSE_PATH } = paths();
 	const { env, composePath, appName } = compose;
 	const composeFilePath =
@@ -200,9 +202,17 @@ const createEnvFile = (compose: ComposeNested) => {
 		envContent += `\nCOMPOSE_PREFIX=${compose.suffix}`;
 	}
 
+	// Generate environment variables for this compose service
+	const fullProject = await findProjectById(compose.projectId);
+	const context = createComposeContext(compose);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+
 	const envFileContent = prepareEnvironmentVariables(
 		envContent,
 		compose.project.env,
+		generatedVars,
 	).join("\n");
 
 	if (!existsSync(dirname(envFilePath))) {
@@ -211,7 +221,7 @@ const createEnvFile = (compose: ComposeNested) => {
 	writeFileSync(envFilePath, envFileContent);
 };
 
-export const getCreateEnvFileCommand = (compose: ComposeNested) => {
+export const getCreateEnvFileCommand = async (compose: ComposeNested) => {
 	const { COMPOSE_PATH } = paths(true);
 	const { env, composePath, appName } = compose;
 	const composeFilePath =
@@ -230,9 +240,17 @@ export const getCreateEnvFileCommand = (compose: ComposeNested) => {
 		envContent += `\nCOMPOSE_PREFIX=${compose.suffix}`;
 	}
 
+	// Generate environment variables for this compose service
+	const fullProject = await findProjectById(compose.projectId);
+	const context = createComposeContext(compose);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+
 	const envFileContent = prepareEnvironmentVariables(
 		envContent,
 		compose.project.env,
+		generatedVars,
 	).join("\n");
 
 	const encodedContent = encodeBase64(envFileContent);

@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { paths } from "@dokploy/server/constants";
 import type { Compose } from "@dokploy/server/services/compose";
 import {
-	type Gitea,
 	findGiteaById,
+	type Gitea,
 	updateGitea,
 } from "@dokploy/server/services/gitea";
 import type { InferResultType } from "@dokploy/server/types/with";

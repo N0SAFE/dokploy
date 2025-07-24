@@ -1,13 +1,13 @@
+import { Download as DownloadIcon, Loader2 } from "lucide-react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/utils/api";
-import { Download as DownloadIcon, Loader2 } from "lucide-react";
-import React, { useEffect, useRef } from "react";
 import { LineCountFilter } from "./line-count-filter";
 import { SinceLogsFilter, type TimeFilter } from "./since-logs-filter";
 import { StatusLogsFilter } from "./status-logs-filter";
 import { TerminalLine } from "./terminal-line";
-import { type LogLine, getLogType, parseLogs } from "./utils";
+import { getLogType, type LogLine, parseLogs } from "./utils";
 
 interface Props {
 	containerId: string;

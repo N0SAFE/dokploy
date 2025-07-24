@@ -1,4 +1,11 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { type CSSProperties, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { CodeEditor } from "@/components/shared/code-editor";
+import { ShowEvaluatedEnvironment } from "@/components/dashboard/shared/show-evaluated-environment";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -16,12 +23,6 @@ import {
 } from "@/components/ui/form";
 import { Toggle } from "@/components/ui/toggle";
 import { api } from "@/utils/api";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { type CSSProperties, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
 import type { ServiceType } from "../advanced/show-resources";
 
 const addEnvironmentSchema = z.object({
@@ -193,6 +194,12 @@ PORT=3000
 					</Form>
 				</CardContent>
 			</Card>
+			<ShowEvaluatedEnvironment 
+				serviceId={id} 
+				serviceType={type}
+				env={currentEnvironment}
+				projectEnv={data?.project?.env}
+			/>
 		</div>
 	);
 };

@@ -176,4 +176,243 @@ COMPLEX_VAR="'Prefix \"DoubleQuoted\" and \${{project.APP_NAME}}'"
 			"COMPLEX_VAR='Prefix \"DoubleQuoted\" and MyApp'",
 		]);
 	});
+
+	// New tests for same-scope variable resolution
+	it("resolves same-scope variables using \${{VARIABLE}} syntax", () => {
+		const serviceEnv = `
+TEST=test_value
+OTHER=\${{TEST}}
+FINAL=prefix_\${{OTHER}}_suffix
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, null);
+
+		expect(resolved).toEqual([
+			"TEST=test_value",
+			"OTHER=test_value",
+			"FINAL=prefix_test_value_suffix",
+		]);
+	});
+
+	it("resolves multiple same-scope variable references in one value", () => {
+		const serviceEnv = `
+HOST=localhost
+PORT=3000
+DATABASE=mydb
+CONNECTION_STRING=\${{HOST}}:\${{PORT}}/\${{DATABASE}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, null);
+
+		expect(resolved).toEqual([
+			"HOST=localhost",
+			"PORT=3000",
+			"DATABASE=mydb",
+			"CONNECTION_STRING=localhost:3000/mydb",
+		]);
+	});
+
+	it("prioritizes same-scope variables over project variables", () => {
+		const projectEnv = `
+DATABASE_URL=project_database
+PORT=8080
+`;
+		const serviceEnv = `
+DATABASE_URL=service_database
+API_URL=\${{DATABASE_URL}}
+SERVER_PORT=\${{PORT}}
+PROJECT_PORT=\${{project.PORT}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, projectEnv);
+
+		expect(resolved).toEqual([
+			"DATABASE_URL=service_database",
+			"API_URL=service_database",
+			"SERVER_PORT=8080",
+			"PROJECT_PORT=8080",
+		]);
+	});
+
+	it("falls back to project scope when same-scope variable not found", () => {
+		const projectEnv = `
+FALLBACK_VAR=from_project
+SHARED_VAR=project_value
+`;
+		const serviceEnv = `
+SHARED_VAR=service_value
+RESOLVED_FALLBACK=\${{FALLBACK_VAR}}
+RESOLVED_SHARED=\${{SHARED_VAR}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, projectEnv);
+
+		expect(resolved).toEqual([
+			"SHARED_VAR=service_value",
+			"RESOLVED_FALLBACK=from_project",
+			"RESOLVED_SHARED=service_value",
+		]);
+	});
+
+	it("throws error when variable not found in either scope", () => {
+		const projectEnv = `
+EXISTING_VAR=exists
+`;
+		const serviceEnv = `
+UNDEFINED_VAR=\${{NONEXISTENT}}
+`;
+
+		expect(() => prepareEnvironmentVariables(serviceEnv, projectEnv)).toThrow(
+			"Invalid environment variable: NONEXISTENT",
+		);
+	});
+
+	it("handles circular dependencies by throwing an error", () => {
+		const serviceEnv = `
+VAR_A=\${{VAR_B}}
+VAR_B=\${{VAR_A}}
+`;
+
+		expect(() => prepareEnvironmentVariables(serviceEnv, null)).toThrow(
+			"Circular dependency detected in environment variables",
+		);
+	});
+
+	it("resolves complex dependency chains", () => {
+		const serviceEnv = `
+BASE=foundation
+LEVEL1=\${{BASE}}_level1
+LEVEL2=\${{LEVEL1}}_level2  
+LEVEL3=\${{LEVEL2}}_level3
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, null);
+
+		expect(resolved).toEqual([
+			"BASE=foundation",
+			"LEVEL1=foundation_level1",
+			"LEVEL2=foundation_level1_level2",
+			"LEVEL3=foundation_level1_level2_level3",
+		]);
+	});
+
+	it("maintains backwards compatibility with project variables", () => {
+		const projectEnv = `
+PROJECT_DB=project_database
+PROJECT_HOST=project.example.com
+`;
+		const serviceEnv = `
+DATABASE_URL=\${{project.PROJECT_DB}}
+HOST=\${{project.PROJECT_HOST}}
+SAME_SCOPE_VAR=local_value
+LOCAL_REF=\${{SAME_SCOPE_VAR}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, projectEnv);
+
+		expect(resolved).toEqual([
+			"DATABASE_URL=project_database",
+			"HOST=project.example.com",
+			"SAME_SCOPE_VAR=local_value",
+			"LOCAL_REF=local_value",
+		]);
+	});
+
+	// New tests for generated variables support
+	it("resolves generated variables when provided", () => {
+		const generatedVars = [
+			{ key: "PROJECT_ID", value: "project_123" },
+			{ key: "APP_URL", value: "https://myapp.example.com" },
+			{ key: "DOCKER_NETWORK", value: "dokploy-network" },
+		];
+
+		const serviceEnv = `
+API_ENDPOINT=\${{APP_URL}}/api
+NETWORK=\${{DOCKER_NETWORK}}
+PROJECT_REF=\${{PROJECT_ID}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, null, generatedVars);
+
+		expect(resolved).toEqual([
+			"API_ENDPOINT=https://myapp.example.com/api",
+			"NETWORK=dokploy-network",
+			"PROJECT_REF=project_123",
+		]);
+	});
+
+	it("prioritizes same-scope over generated variables", () => {
+		const generatedVars = [
+			{ key: "PROJECT_ID", value: "generated_project_123" },
+			{ key: "APP_URL", value: "https://generated.example.com" },
+		];
+
+		const serviceEnv = `
+PROJECT_ID=custom_project_456
+API_ENDPOINT=\${{PROJECT_ID}}/api
+FALLBACK_URL=\${{APP_URL}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, null, generatedVars);
+
+		expect(resolved).toEqual([
+			"PROJECT_ID=custom_project_456",
+			"API_ENDPOINT=custom_project_456/api",
+			"FALLBACK_URL=https://generated.example.com",
+		]);
+	});
+
+	it("prioritizes project variables over generated variables", () => {
+		const projectEnv = `
+PROJECT_ID=project_from_env
+`;
+		const generatedVars = [
+			{ key: "PROJECT_ID", value: "generated_project_123" },
+			{ key: "APP_URL", value: "https://generated.example.com" },
+		];
+
+		const serviceEnv = `
+RESOLVED_PROJECT=\${{PROJECT_ID}}
+RESOLVED_GENERATED=\${{APP_URL}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, projectEnv, generatedVars);
+
+		expect(resolved).toEqual([
+			"RESOLVED_PROJECT=project_from_env",
+			"RESOLVED_GENERATED=https://generated.example.com",
+		]);
+	});
+
+	it("works with complex combinations of all variable types", () => {
+		const projectEnv = `
+ENVIRONMENT=production
+DOMAIN=example.com
+`;
+		const generatedVars = [
+			{ key: "PROJECT_ID", value: "proj_789" },
+			{ key: "APP_PORT", value: "3000" },
+		];
+
+		const serviceEnv = `
+SERVICE_NAME=my-api
+BASE_URL=https://\${{SERVICE_NAME}}.\${{project.DOMAIN}}
+FULL_URL=\${{BASE_URL}}:\${{APP_PORT}}
+METADATA=env:\${{project.ENVIRONMENT}},project:\${{PROJECT_ID}},service:\${{SERVICE_NAME}}
+`;
+		const resolved = prepareEnvironmentVariables(serviceEnv, projectEnv, generatedVars);
+
+		expect(resolved).toEqual([
+			"SERVICE_NAME=my-api",
+			"BASE_URL=https://my-api.example.com",
+			"FULL_URL=https://my-api.example.com:3000",
+			"METADATA=env:production,project:proj_789,service:my-api",
+		]);
+	});
+
+	it("handles missing generated variable gracefully", () => {
+		const generatedVars = [
+			{ key: "PROJECT_ID", value: "proj_123" },
+		];
+
+		const serviceEnv = `
+VALID_VAR=\${{PROJECT_ID}}
+INVALID_VAR=\${{NONEXISTENT_GENERATED}}
+`;
+
+		expect(() => prepareEnvironmentVariables(serviceEnv, null, generatedVars)).toThrow(
+			"Invalid environment variable: NONEXISTENT_GENERATED",
+		);
+	});
 });

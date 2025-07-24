@@ -1,3 +1,5 @@
+import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
 	Sheet,
 	SheetContent,
@@ -5,8 +7,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { TerminalLine } from "../dashboard/docker/logs/terminal-line";
 import type { LogLine } from "../dashboard/docker/logs/utils";
 

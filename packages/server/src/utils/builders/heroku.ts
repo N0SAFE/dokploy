@@ -1,8 +1,12 @@
 import type { WriteStream } from "node:fs";
-import type { ApplicationNested } from ".";
 import { prepareEnvironmentVariables } from "../docker/utils";
 import { getBuildAppDirectory } from "../filesystem/directory";
 import { spawnAsync } from "../process/spawnAsync";
+import { createApplicationContext, EnvVariableGenerator } from "../env-generator/env-generator";
+import { findDomainsByApplicationId } from "@dokploy/server/services/domain";
+import { findProjectById } from "@dokploy/server/services/project";
+import { createDetailedServicesFromProject } from "../env-generator/helpers";
+import type { ApplicationNested } from ".";
 
 // TODO: integrate in the vps sudo chown -R $(whoami) ~/.docker
 export const buildHeroku = async (
@@ -11,9 +15,19 @@ export const buildHeroku = async (
 ) => {
 	const { env, appName, cleanCache } = application;
 	const buildAppDirectory = getBuildAppDirectory(application);
+	
+	// Generate environment variables for this application
+	const domains = await findDomainsByApplicationId(application.applicationId);
+	const fullProject = await findProjectById(application.projectId);
+	const context = createApplicationContext(application, domains);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+	
 	const envVariables = prepareEnvironmentVariables(
 		env,
 		application.project.env,
+		generatedVars,
 	);
 	try {
 		const args = [
@@ -44,16 +58,26 @@ export const buildHeroku = async (
 	}
 };
 
-export const getHerokuCommand = (
+export const getHerokuCommand = async (
 	application: ApplicationNested,
 	logPath: string,
 ) => {
 	const { env, appName, cleanCache } = application;
 
 	const buildAppDirectory = getBuildAppDirectory(application);
+	
+	// Generate environment variables for this application
+	const domains = await findDomainsByApplicationId(application.applicationId);
+	const fullProject = await findProjectById(application.projectId);
+	const context = createApplicationContext(application, domains);
+	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+	const generator = new EnvVariableGenerator(context);
+	const generatedVars = generator.generateAll();
+	
 	const envVariables = prepareEnvironmentVariables(
 		env,
 		application.project.env,
+		generatedVars,
 	);
 
 	const args = [
