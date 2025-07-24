@@ -16,11 +16,13 @@ import { applications } from "./application";
 import { compose } from "./compose";
 import { previewDeployments } from "./preview-deployments";
 import { certificateType } from "./shared";
+import { monorepo } from "./monorepo";
 
 export const domainType = pgEnum("domainType", [
 	"compose",
 	"application",
 	"preview",
+	"monorepo",
 ]);
 
 export const domains = pgTable("domain", {
@@ -39,6 +41,9 @@ export const domains = pgTable("domain", {
 		.notNull()
 		.$defaultFn(() => new Date().toISOString()),
 	composeId: text("composeId").references(() => compose.composeId, {
+		onDelete: "cascade",
+	}),
+	monorepoId: text("monorepoId").references(() => monorepo.monorepoId, {
 		onDelete: "cascade",
 	}),
 	customCertResolver: text("customCertResolver"),
@@ -63,6 +68,10 @@ export const domainsRelations = relations(domains, ({ one }) => ({
 	compose: one(compose, {
 		fields: [domains.composeId],
 		references: [compose.composeId],
+	}),
+	monorepo: one(monorepo, {
+		fields: [domains.monorepoId],
+		references: [monorepo.monorepoId],
 	}),
 	previewDeployment: one(previewDeployments, {
 		fields: [domains.previewDeploymentId],
