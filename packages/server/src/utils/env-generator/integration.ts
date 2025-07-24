@@ -32,33 +32,49 @@ export const prepareApplicationEnvironmentVariables = async (
 ): Promise<string[]> => {
 	const { includeGenerated = true } = options;
 
-	// Get original environment variables
-	const originalVars = prepareEnvironmentVariables(
-		application.env,
-		application.project.env,
-	);
-
 	if (!includeGenerated) {
-		return originalVars;
+		// Get original environment variables without generated vars
+		return prepareEnvironmentVariables(
+			application.env,
+			application.project.env,
+		);
 	}
 
 	try {
 		// Fetch domains for this application
 		const domains = await findDomainsByApplicationId(application.applicationId);
 
-		// Create context and generate additional variables
+		// Create context and generate variables
 		const context = createApplicationContext(application, domains);
-		const additionalVars = prepareEnhancedEnvironmentVariables(
+		const generator = new EnvVariableGenerator(context);
+		const generatedVars = generator.generateAll();
+
+		// Filter by categories if specified
+		const filteredVars = options.categories
+			? generatedVars.filter((v) => options.categories!.includes(v.category))
+			: generatedVars;
+
+		// Get environment variables with generated vars passed in
+		const resolvedVars = prepareEnvironmentVariables(
 			application.env,
 			application.project.env,
-			context,
-			options,
+			filteredVars,
 		);
 
-		return additionalVars;
+		// Add remaining generated variables that weren't already defined
+		const existingKeys = new Set(resolvedVars.map((v) => v.split("=")[0]));
+		const newGeneratedVars = filteredVars
+			.filter((v) => !existingKeys.has(v.key))
+			.map((v) => `${v.key}=${v.value}`);
+
+		return [...resolvedVars, ...newGeneratedVars];
 	} catch (error) {
 		console.warn("Failed to generate enhanced environment variables:", error);
-		return originalVars;
+		// Fallback to original vars without generated variables
+		return prepareEnvironmentVariables(
+			application.env,
+			application.project.env,
+		);
 	}
 };
 
@@ -76,21 +92,19 @@ export const prepareComposeEnvironmentVariables = async (
 ): Promise<string[]> => {
 	const { includeGenerated = true } = options;
 
-	// Get original environment variables
-	const originalVars = prepareEnvironmentVariables(
-		compose.env,
-		compose.project.env,
-	);
-
 	if (!includeGenerated) {
-		return originalVars;
+		// Get original environment variables without generated vars
+		return prepareEnvironmentVariables(
+			compose.env,
+			compose.project.env,
+		);
 	}
 
 	try {
 		// Fetch domains for this compose
 		const domains = await findDomainsByComposeId(compose.composeId);
 
-		// Create context and generate additional variables
+		// Create context and generate variables
 		const context = createComposeContext(compose);
 		// Add domains to context
 		context.project.domains = domains.map((domain) => ({
@@ -101,17 +115,35 @@ export const prepareComposeEnvironmentVariables = async (
 			path: domain.path,
 		}));
 
-		const additionalVars = prepareEnhancedEnvironmentVariables(
+		const generator = new EnvVariableGenerator(context);
+		const generatedVars = generator.generateAll();
+
+		// Filter by categories if specified
+		const filteredVars = options.categories
+			? generatedVars.filter((v) => options.categories!.includes(v.category))
+			: generatedVars;
+
+		// Get environment variables with generated vars passed in
+		const resolvedVars = prepareEnvironmentVariables(
 			compose.env,
 			compose.project.env,
-			context,
-			options,
+			filteredVars,
 		);
 
-		return additionalVars;
+		// Add remaining generated variables that weren't already defined
+		const existingKeys = new Set(resolvedVars.map((v) => v.split("=")[0]));
+		const newGeneratedVars = filteredVars
+			.filter((v) => !existingKeys.has(v.key))
+			.map((v) => `${v.key}=${v.value}`);
+
+		return [...resolvedVars, ...newGeneratedVars];
 	} catch (error) {
 		console.warn("Failed to generate enhanced environment variables:", error);
-		return originalVars;
+		// Fallback to original vars without generated variables
+		return prepareEnvironmentVariables(
+			compose.env,
+			compose.project.env,
+		);
 	}
 };
 
@@ -141,30 +173,46 @@ export const prepareDatabaseEnvironmentVariables = (
 ): string[] => {
 	const { includeGenerated = true } = options;
 
-	// Get original environment variables
-	const originalVars = prepareEnvironmentVariables(
-		database.env ?? null,
-		project.env,
-	);
-
 	if (!includeGenerated) {
-		return originalVars;
+		// Get original environment variables without generated vars
+		return prepareEnvironmentVariables(
+			database.env ?? null,
+			project.env,
+		);
 	}
 
 	try {
-		// Create context and generate additional variables
+		// Create context and generate variables
 		const context = createDatabaseContext(database, project, type);
-		const additionalVars = prepareEnhancedEnvironmentVariables(
+		const generator = new EnvVariableGenerator(context);
+		const generatedVars = generator.generateAll();
+
+		// Filter by categories if specified
+		const filteredVars = options.categories
+			? generatedVars.filter((v) => options.categories!.includes(v.category))
+			: generatedVars;
+
+		// Get environment variables with generated vars passed in
+		const resolvedVars = prepareEnvironmentVariables(
 			database.env ?? null,
-			project.env ?? null,
-			context,
-			options,
+			project.env,
+			filteredVars,
 		);
 
-		return additionalVars;
+		// Add remaining generated variables that weren't already defined
+		const existingKeys = new Set(resolvedVars.map((v) => v.split("=")[0]));
+		const newGeneratedVars = filteredVars
+			.filter((v) => !existingKeys.has(v.key))
+			.map((v) => `${v.key}=${v.value}`);
+
+		return [...resolvedVars, ...newGeneratedVars];
 	} catch (error) {
 		console.warn("Failed to generate enhanced environment variables:", error);
-		return originalVars;
+		// Fallback to original vars without generated variables
+		return prepareEnvironmentVariables(
+			database.env ?? null,
+			project.env,
+		);
 	}
 };
 

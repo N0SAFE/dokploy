@@ -1,4 +1,5 @@
 import type { ApplicationNested } from "../builders";
+import { prepareEnvironmentVariables } from "../docker/utils";
 
 /**
  * Context interface for generating environment variables
@@ -923,13 +924,6 @@ export const prepareEnhancedEnvironmentVariables = (
 ): string[] => {
 	const { includeGenerated = true, categories } = options;
 
-	// Start with original environment variable preparation
-	const originalVars = prepareBasicEnvironmentVariables(serviceEnv, projectEnv);
-
-	if (!includeGenerated) {
-		return originalVars;
-	}
-
 	// Generate additional variables
 	const generator = new EnvVariableGenerator(context);
 	const generatedVars = generator.generateAll();
@@ -939,16 +933,24 @@ export const prepareEnhancedEnvironmentVariables = (
 		? generatedVars.filter((v) => categories.includes(v.category))
 		: generatedVars;
 
-	// Convert generated vars to string format
-	const generatedStrings = filteredVars.map((v) => `${v.key}=${v.value}`);
-
-	// Merge original and generated, with original taking precedence
-	const originalKeys = new Set(originalVars.map((v) => v.split("=")[0]));
-	const newGeneratedVars = generatedStrings.filter(
-		(v) => !originalKeys.has(v.split("=")[0]),
+	// Use enhanced environment variable preparation with generated vars
+	const resolvedVars = prepareEnvironmentVariables(
+		serviceEnv,
+		projectEnv,
+		includeGenerated ? filteredVars : undefined,
 	);
 
-	return [...originalVars, ...newGeneratedVars];
+	if (!includeGenerated) {
+		return resolvedVars;
+	}
+
+	// Add remaining generated variables that weren't already defined
+	const existingKeys = new Set(resolvedVars.map((v) => v.split("=")[0]));
+	const newGeneratedVars = filteredVars
+		.filter((v) => !existingKeys.has(v.key))
+		.map((v) => `${v.key}=${v.value}`);
+
+	return [...resolvedVars, ...newGeneratedVars];
 };
 
 /**
