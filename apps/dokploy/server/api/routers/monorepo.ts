@@ -400,6 +400,41 @@ export const monorepoRouter = createTRPCRouter({
 			});
 			return updatedMonorepo;
 		}),
+
+	disconnectGitProvider: protectedProcedure
+		.input(apiFindMonorepo)
+		.mutation(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (
+				monorepo.project.organizationId !== ctx.session.activeOrganizationId
+			) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to disconnect this git provider",
+				});
+			}
+
+			const updatedMonorepo = await updateMonorepoById(input.monorepoId, {
+				sourceType: null,
+				repository: null,
+				owner: null,
+				branch: null,
+				buildPath: null,
+				githubId: null,
+				gitlabId: null,
+				bitbucketId: null,
+				giteaId: null,
+				dockerImage: null,
+				username: null,
+				password: null,
+				registryUrl: null,
+				customGitUrl: null,
+				customGitBranch: null,
+				customGitBuildPath: null,
+				customGitSSHKeyId: null,
+			});
+			return updatedMonorepo;
+		}),
 });
 
 // Remove the extra import at the bottom since they're now imported above
