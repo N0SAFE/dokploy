@@ -8,6 +8,7 @@ import { applications } from "./application";
 import { compose } from "./compose";
 import { mariadb } from "./mariadb";
 import { mongo } from "./mongo";
+import { monorepo } from "./monorepo";
 import { mysql } from "./mysql";
 import { postgres } from "./postgres";
 import { redis } from "./redis";
@@ -37,6 +38,7 @@ export const projectRelations = relations(projects, ({ many, one }) => ({
 	mongo: many(mongo),
 	redis: many(redis),
 	compose: many(compose),
+	monorepo: many(monorepo),
 	organization: one(organization, {
 		fields: [projects.organizationId],
 		references: [organization.id],

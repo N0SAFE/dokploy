@@ -1,8 +1,12 @@
 import { join } from "node:path";
 import { paths } from "@dokploy/server/constants";
 import { db } from "@dokploy/server/db";
-import { type apiCreateCompose, compose } from "@dokploy/server/db/schema";
-import { buildAppName, cleanAppName } from "@dokploy/server/db/schema";
+import {
+	type apiCreateCompose,
+	buildAppName,
+	cleanAppName,
+	compose,
+} from "@dokploy/server/db/schema";
 import {
 	buildCompose,
 	getBuildComposeCommand,

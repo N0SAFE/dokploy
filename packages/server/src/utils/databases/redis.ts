@@ -5,8 +5,8 @@ import {
 	generateBindMounts,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
+import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
 import { getRemoteDocker } from "../servers/remote-docker";
 
 export type RedisNested = InferResultType<
@@ -37,9 +37,23 @@ export const buildRedis = async (redis: RedisNested) => {
 		cpuLimit,
 		cpuReservation,
 	});
-	const envVariables = prepareEnvironmentVariables(
-		defaultRedisEnv,
-		redis.project.env,
+	const envVariables = prepareDatabaseEnvironmentVariables(
+		{
+			id: redis.redisId,
+			name: redis.name,
+			appName: redis.appName,
+			env: defaultRedisEnv,
+		},
+		{
+			projectId: redis.project.projectId,
+			name: redis.project.name,
+			env: redis.project.env,
+		},
+		"redis",
+		{
+			includeGenerated: true,
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

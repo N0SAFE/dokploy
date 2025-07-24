@@ -1,25 +1,12 @@
-import { db } from "@/server/db";
 import {
-	apiAssignDomain,
-	apiEnableDashboard,
-	apiModifyTraefikConfig,
-	apiReadStatsLogs,
-	apiReadTraefikConfig,
-	apiSaveSSHKey,
-	apiServerSchema,
-	apiTraefikConfig,
-	apiUpdateDockerCleanup,
-} from "@/server/db/schema";
-import { removeJob, schedule } from "@/server/utils/backup";
-import {
-	DEFAULT_UPDATE_DATA,
-	IS_CLOUD,
 	canAccessToTraefikFiles,
+	checkGPUStatus,
 	cleanStoppedContainers,
 	cleanUpDockerBuilder,
 	cleanUpSystemPrune,
 	cleanUpUnusedImages,
 	cleanUpUnusedVolumes,
+	DEFAULT_UPDATE_DATA,
 	execAsync,
 	execAsyncRemote,
 	findServerById,
@@ -28,6 +15,7 @@ import {
 	getDokployImageTag,
 	getLogCleanupStatus,
 	getUpdateData,
+	IS_CLOUD,
 	initializeTraefik,
 	parseRawConfig,
 	paths,
@@ -41,6 +29,7 @@ import {
 	readMonitoringConfig,
 	recreateDirectory,
 	sendDockerCleanupNotifications,
+	setupGPUSupport,
 	spawnAsync,
 	startLogCleanup,
 	stopLogCleanup,
@@ -52,13 +41,25 @@ import {
 	writeMainConfig,
 	writeTraefikConfigInPath,
 } from "@dokploy/server";
-import { checkGPUStatus, setupGPUSupport } from "@dokploy/server";
 import { generateOpenApiDocument } from "@dokploy/trpc-openapi";
 import { TRPCError } from "@trpc/server";
 import { sql } from "drizzle-orm";
 import { dump, load } from "js-yaml";
-import { scheduleJob, scheduledJobs } from "node-schedule";
+import { scheduledJobs, scheduleJob } from "node-schedule";
 import { z } from "zod";
+import { db } from "@/server/db";
+import {
+	apiAssignDomain,
+	apiEnableDashboard,
+	apiModifyTraefikConfig,
+	apiReadStatsLogs,
+	apiReadTraefikConfig,
+	apiSaveSSHKey,
+	apiServerSchema,
+	apiTraefikConfig,
+	apiUpdateDockerCleanup,
+} from "@/server/db/schema";
+import { removeJob, schedule } from "@/server/utils/backup";
 import packageInfo from "../../../package.json";
 import { appRouter } from "../root";
 import {

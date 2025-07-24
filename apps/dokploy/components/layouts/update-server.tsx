@@ -1,8 +1,8 @@
-import { api } from "@/utils/api";
 import type { IUpdateData } from "@dokploy/server/index";
 import { Download } from "lucide-react";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import { api } from "@/utils/api";
 import UpdateServer from "../dashboard/settings/web-server/update-server";
 import { Button } from "../ui/button";
 import {
@@ -11,6 +11,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "../ui/tooltip";
+
 const AUTO_CHECK_UPDATES_INTERVAL_MINUTES = 7;
 
 export const UpdateServerButton = () => {

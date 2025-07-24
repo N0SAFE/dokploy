@@ -12,6 +12,7 @@ import { z } from "zod";
 import { applications } from "./application";
 import { backups } from "./backups";
 import { compose } from "./compose";
+import { monorepo } from "./monorepo";
 import { previewDeployments } from "./preview-deployments";
 import { rollbacks } from "./rollbacks";
 import { schedules } from "./schedule";
@@ -38,6 +39,9 @@ export const deployments = pgTable("deployment", {
 		{ onDelete: "cascade" },
 	),
 	composeId: text("composeId").references(() => compose.composeId, {
+		onDelete: "cascade",
+	}),
+	monorepoId: text("monorepoId").references(() => monorepo.monorepoId, {
 		onDelete: "cascade",
 	}),
 	serverId: text("serverId").references(() => server.serverId, {
@@ -79,6 +83,10 @@ export const deploymentsRelations = relations(deployments, ({ one }) => ({
 	compose: one(compose, {
 		fields: [deployments.composeId],
 		references: [compose.composeId],
+	}),
+	monorepo: one(monorepo, {
+		fields: [deployments.monorepoId],
+		references: [monorepo.monorepoId],
 	}),
 	server: one(server, {
 		fields: [deployments.serverId],
@@ -151,6 +159,18 @@ export const apiCreateDeploymentCompose = schema
 	})
 	.extend({
 		composeId: z.string().min(1),
+	});
+
+export const apiCreateDeploymentMonorepo = schema
+	.pick({
+		title: true,
+		status: true,
+		logPath: true,
+		monorepoId: true,
+		description: true,
+	})
+	.extend({
+		monorepoId: z.string().min(1),
 	});
 
 export const apiCreateDeploymentBackup = schema

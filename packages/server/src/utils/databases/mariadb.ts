@@ -5,8 +5,8 @@ import {
 	generateBindMounts,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
+import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
 import { getRemoteDocker } from "../servers/remote-docker";
 
 export type MariadbNested = InferResultType<
@@ -40,9 +40,24 @@ export const buildMariadb = async (mariadb: MariadbNested) => {
 		cpuLimit,
 		cpuReservation,
 	});
-	const envVariables = prepareEnvironmentVariables(
-		defaultMariadbEnv,
-		mariadb.project.env,
+	const envVariables = prepareDatabaseEnvironmentVariables(
+		{
+			id: mariadb.mariadbId,
+			name: mariadb.name,
+			appName: mariadb.appName,
+			env: defaultMariadbEnv,
+			databaseName,
+		},
+		{
+			projectId: mariadb.project.projectId,
+			name: mariadb.project.name,
+			env: mariadb.project.env,
+		},
+		"mariadb",
+		{
+			includeGenerated: true,
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

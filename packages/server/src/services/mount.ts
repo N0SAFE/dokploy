@@ -2,9 +2,9 @@ import path from "node:path";
 import { paths } from "@dokploy/server/constants";
 import { db } from "@dokploy/server/db";
 import {
-	type ServiceType,
 	type apiCreateMount,
 	mounts,
+	type ServiceType,
 } from "@dokploy/server/db/schema";
 import {
 	createFile,
@@ -13,7 +13,7 @@ import {
 import { removeFileOrDirectory } from "@dokploy/server/utils/filesystem/directory";
 import { execAsyncRemote } from "@dokploy/server/utils/process/execAsync";
 import { TRPCError } from "@trpc/server";
-import { type SQL, eq, sql } from "drizzle-orm";
+import { eq, type SQL, sql } from "drizzle-orm";
 
 export type Mount = typeof mounts.$inferSelect;
 

@@ -5,8 +5,8 @@ import {
 	generateBindMounts,
 	generateFileMounts,
 	generateVolumeMounts,
-	prepareEnvironmentVariables,
 } from "../docker/utils";
+import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
 import { getRemoteDocker } from "../servers/remote-docker";
 
 export type MysqlNested = InferResultType<
@@ -46,9 +46,24 @@ export const buildMysql = async (mysql: MysqlNested) => {
 		cpuLimit,
 		cpuReservation,
 	});
-	const envVariables = prepareEnvironmentVariables(
-		defaultMysqlEnv,
-		mysql.project.env,
+	const envVariables = prepareDatabaseEnvironmentVariables(
+		{
+			id: mysql.mysqlId,
+			name: mysql.name,
+			appName: mysql.appName,
+			env: defaultMysqlEnv,
+			databaseName,
+		},
+		{
+			projectId: mysql.project.projectId,
+			name: mysql.project.name,
+			env: mysql.project.env,
+		},
+		"mysql",
+		{
+			includeGenerated: true,
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);
