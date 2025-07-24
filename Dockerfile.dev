@@ -20,8 +20,17 @@ RUN apt-get update && apt-get install -y \
     iproute2 \
     rsync \
     git-lfs \
+    gpg \
+    ca-certificates \
+    lsb-release \
+    bash \
+    dos2unix \
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI
+# Install Docker CLI for development container management
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && rm get-docker.sh
 
 WORKDIR /app
 
@@ -36,15 +45,22 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Copy and set up startup script
+COPY docker/dev-start.sh /usr/local/bin/dev-start.sh
+# Convert Windows line endings to Unix line endings
+RUN dos2unix /usr/local/bin/dev-start.sh
+RUN chmod +x /usr/local/bin/dev-start.sh
+RUN ls -la /usr/local/bin/dev-start.sh && cat /usr/local/bin/dev-start.sh
+RUN which bash || echo "bash not found" && which sh && ls -la /bin/sh
+
 # Build the server package first (required by dokploy app)
 RUN pnpm --filter=@dokploy/server run build
+
+RUN pnpm --filter=dokploy run migration:run
 
 # Set development environment
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Install Docker CLI for development container management
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && rm get-docker.sh
 
 # Install development tools similar to production
 RUN curl https://rclone.org/install.sh | bash
@@ -65,10 +81,6 @@ COPY --from=buildpacksio/pack:0.35.0 /usr/local/bin/pack /usr/local/bin/pack
 # Ensure docker group exists and set proper permissions for docker socket access
 RUN groupadd -f docker
 
-# Copy startup script
-COPY docker/dev-start.sh /usr/local/bin/dev-start.sh
-RUN chmod +x /usr/local/bin/dev-start.sh
-
 # Expose ports
 EXPOSE 3000 3001
 
@@ -78,4 +90,4 @@ VOLUME ["/app/node_modules", "/app/apps/dokploy/node_modules", "/app/packages/se
 # Development command with hot reloading
 # Run from root workspace to access all dependencies
 WORKDIR /app
-CMD ["/usr/local/bin/dev-start.sh"]
+CMD ["bash", "/usr/local/bin/dev-start.sh"]

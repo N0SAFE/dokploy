@@ -59,6 +59,8 @@ export const DeleteService = ({ id, type }: Props) => {
 		mongo: () => api.mongo.one.useQuery({ mongoId: id }, { enabled: !!id }),
 		compose: () =>
 			api.compose.one.useQuery({ composeId: id }, { enabled: !!id }),
+		monorepo: () =>
+			api.monorepo.one.useQuery({ monorepoId: id }, { enabled: !!id }),
 	};
 	const { data } = queryMap[type]
 		? queryMap[type]()
@@ -72,6 +74,7 @@ export const DeleteService = ({ id, type }: Props) => {
 		application: () => api.application.delete.useMutation(),
 		mongo: () => api.mongo.remove.useMutation(),
 		compose: () => api.compose.delete.useMutation(),
+		monorepo: () => api.monorepo.remove.useMutation(),
 	};
 	const { mutateAsync, isLoading } = mutationMap[type]
 		? mutationMap[type]()
@@ -89,24 +92,57 @@ export const DeleteService = ({ id, type }: Props) => {
 		const expectedName = `${data?.name}/${data?.appName}`;
 		if (formData.projectName === expectedName) {
 			const { deleteVolumes } = formData;
-			await mutateAsync({
-				mongoId: id || "",
-				postgresId: id || "",
-				redisId: id || "",
-				mysqlId: id || "",
-				mariadbId: id || "",
-				applicationId: id || "",
-				composeId: id || "",
-				deleteVolumes,
-			})
-				.then((result) => {
-					push(`/dashboard/project/${result?.projectId}`);
-					toast.success("deleted successfully");
-					setIsOpen(false);
-				})
-				.catch(() => {
-					toast.error("Error deleting the service");
-				});
+
+			try {
+				// Use type assertion to handle the union type
+				let result;
+				switch (type) {
+					case "mongo":
+						result = await (mutateAsync as any)({ mongoId: id, deleteVolumes });
+						break;
+					case "postgres":
+						result = await (mutateAsync as any)({
+							postgresId: id,
+							deleteVolumes,
+						});
+						break;
+					case "redis":
+						result = await (mutateAsync as any)({ redisId: id, deleteVolumes });
+						break;
+					case "mysql":
+						result = await (mutateAsync as any)({ mysqlId: id, deleteVolumes });
+						break;
+					case "mariadb":
+						result = await (mutateAsync as any)({
+							mariadbId: id,
+							deleteVolumes,
+						});
+						break;
+					case "application":
+						result = await (mutateAsync as any)({
+							applicationId: id,
+							deleteVolumes,
+						});
+						break;
+					case "compose":
+						result = await (mutateAsync as any)({
+							composeId: id,
+							deleteVolumes,
+						});
+						break;
+					case "monorepo":
+						result = await (mutateAsync as any)({
+							monorepoId: id,
+							deleteVolumes,
+						});
+						break;
+				}
+				push(`/dashboard/project/${result?.projectId}`);
+				toast.success("deleted successfully");
+				setIsOpen(false);
+			} catch (error) {
+				toast.error("Error deleting the service");
+			}
 		} else {
 			form.setError("projectName", {
 				message: `Project name must match "${expectedName}"`,

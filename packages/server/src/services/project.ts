@@ -4,6 +4,7 @@ import {
 	applications,
 	mariadb,
 	mongo,
+	monorepo,
 	mysql,
 	postgres,
 	projects,
@@ -48,6 +49,7 @@ export const findProjectById = async (projectId: string) => {
 			postgres: true,
 			redis: true,
 			compose: true,
+			monorepo: true,
 		},
 	});
 	if (!project) {
@@ -106,6 +108,9 @@ export const validUniqueServerAppName = async (appName: string) => {
 			redis: {
 				where: eq(redis.appName, appName),
 			},
+			monorepo: {
+				where: eq(monorepo.appName, appName),
+			},
 		},
 	});
 
@@ -117,7 +122,8 @@ export const validUniqueServerAppName = async (appName: string) => {
 			project.mongo.length > 0 ||
 			project.mysql.length > 0 ||
 			project.postgres.length > 0 ||
-			project.redis.length > 0,
+			project.redis.length > 0 ||
+			project.monorepo.length > 0,
 	);
 
 	return nonEmptyProjects.length === 0;

@@ -7,6 +7,7 @@ import { applications } from "./application";
 import { compose } from "./compose";
 import { mariadb } from "./mariadb";
 import { mongo } from "./mongo";
+import { monorepo } from "./monorepo";
 import { mysql } from "./mysql";
 import { postgres } from "./postgres";
 import { redis } from "./redis";
@@ -19,6 +20,7 @@ export const serviceType = pgEnum("serviceType", [
 	"mongo",
 	"redis",
 	"compose",
+	"monorepo",
 ]);
 
 export const mountType = pgEnum("mountType", ["bind", "volume", "file"]);
@@ -57,6 +59,9 @@ export const mounts = pgTable("mount", {
 	composeId: text("composeId").references(() => compose.composeId, {
 		onDelete: "cascade",
 	}),
+	monorepoId: text("monorepoId").references(() => monorepo.monorepoId, {
+		onDelete: "cascade",
+	}),
 });
 
 export const MountssRelations = relations(mounts, ({ one }) => ({
@@ -88,6 +93,10 @@ export const MountssRelations = relations(mounts, ({ one }) => ({
 		fields: [mounts.composeId],
 		references: [compose.composeId],
 	}),
+	monorepo: one(monorepo, {
+		fields: [mounts.monorepoId],
+		references: [monorepo.monorepoId],
+	}),
 }));
 
 const createSchema = createInsertSchema(mounts, {
@@ -108,6 +117,7 @@ const createSchema = createInsertSchema(mounts, {
 			"mongo",
 			"redis",
 			"compose",
+			"monorepo",
 		])
 		.default("application"),
 });

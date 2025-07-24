@@ -45,6 +45,7 @@ import {
 	compose,
 	mariadb,
 	mongo,
+	monorepo,
 	mysql,
 	postgres,
 	projects,
@@ -141,6 +142,9 @@ export const projectRouter = createTRPCRouter({
 						redis: {
 							where: buildServiceFilter(redis.redisId, accessedServices),
 						},
+						monorepo: {
+							where: buildServiceFilter(monorepo.monorepoId, accessedServices),
+						},
 					},
 				});
 
@@ -208,6 +212,9 @@ export const projectRouter = createTRPCRouter({
 						where: buildServiceFilter(compose.composeId, accessedServices),
 						with: { domains: true },
 					},
+					monorepo: {
+						where: buildServiceFilter(monorepo.monorepoId, accessedServices),
+					},
 				},
 				orderBy: desc(projects.createdAt),
 			});
@@ -230,6 +237,7 @@ export const projectRouter = createTRPCRouter({
 						domains: true,
 					},
 				},
+				monorepo: true,
 			},
 			where: eq(projects.organizationId, ctx.session.activeOrganizationId),
 			orderBy: desc(projects.createdAt),
@@ -304,6 +312,7 @@ export const projectRouter = createTRPCRouter({
 								"mysql",
 								"redis",
 								"compose",
+								"monorepo",
 							]),
 						}),
 					)

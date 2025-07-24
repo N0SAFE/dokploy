@@ -25,7 +25,7 @@ export type PreviewDeployment = typeof previewDeployments.$inferSelect;
 export const findPreviewDeploymentById = async (
 	previewDeploymentId: string,
 ) => {
-	const application = await db.query.previewDeployments.findFirst({
+	const previewDeployment = await db.query.previewDeployments.findFirst({
 		where: eq(previewDeployments.previewDeploymentId, previewDeploymentId),
 		with: {
 			domain: true,
@@ -35,15 +35,21 @@ export const findPreviewDeploymentById = async (
 					project: true,
 				},
 			},
+			monorepo: {
+				with: {
+					server: true,
+					project: true,
+				},
+			},
 		},
 	});
-	if (!application) {
+	if (!previewDeployment) {
 		throw new TRPCError({
 			code: "NOT_FOUND",
 			message: "Preview Deployment not found",
 		});
 	}
-	return application;
+	return previewDeployment;
 };
 
 export const findApplicationByPreview = async (applicationId: string) => {
@@ -151,19 +157,35 @@ export const findPreviewDeploymentsByApplicationId = async (
 	return deploymentsList;
 };
 
+export const findPreviewDeploymentsByMonorepoId = async (
+	monorepoId: string,
+) => {
+	const deploymentsList = await db.query.previewDeployments.findMany({
+		where: eq(previewDeployments.monorepoId, monorepoId),
+		orderBy: desc(previewDeployments.createdAt),
+		with: {
+			deployments: {
+				orderBy: desc(deployments.createdAt),
+			},
+			domain: true,
+		},
+	});
+	return deploymentsList;
+};
+
 export const createPreviewDeployment = async (
 	schema: typeof apiCreatePreviewDeployment._type,
 ) => {
 	if (schema.applicationId) {
 		return await createApplicationPreviewDeployment(schema);
-	} else if (schema.monorepoId) {
-		return await createMonorepoPreviewDeployment(schema);
-	} else {
-		throw new TRPCError({
-			code: "BAD_REQUEST",
-			message: "Either applicationId or monorepoId must be provided",
-		});
 	}
+	if (schema.monorepoId) {
+		return await createMonorepoPreviewDeployment(schema);
+	}
+	throw new TRPCError({
+		code: "BAD_REQUEST",
+		message: "Either applicationId or monorepoId must be provided",
+	});
 };
 
 const createApplicationPreviewDeployment = async (

@@ -245,19 +245,23 @@ export const deployMonorepo = async ({
 			monorepoStatus: "running",
 		});
 
-		// Based on deployment type, handle differently
-		switch (monorepoItem.deploymentType) {
-			case "dockerfile":
-				await deployMonorepoDockerfile(monorepoItem, deployment.logPath);
+		// Deploy based on source type and services configuration
+		switch (monorepoItem.sourceType) {
+			case "docker":
+				await deployMonorepoDocker(monorepoItem, deployment.logPath);
 				break;
-			case "docker-compose":
-				await deployMonorepoCompose(monorepoItem, deployment.logPath);
-				break;
-			case "command":
-				await deployMonorepoCommand(monorepoItem, deployment.logPath);
+			case "git":
+			case "github":
+			case "gitlab":
+			case "bitbucket":
+			case "gitea":
+			case "drop":
+				await deployMonorepoFromSource(monorepoItem, deployment.logPath);
 				break;
 			default:
-				throw new Error(`Unsupported deployment type: ${monorepoItem.deploymentType}`);
+				throw new Error(
+					`Unsupported source type: ${monorepoItem.sourceType}`,
+				);
 		}
 
 		await updateMonorepoById(monorepoId, {
@@ -289,22 +293,23 @@ export const rebuildMonorepo = async ({
 };
 
 // Deployment type specific functions
-const deployMonorepoDockerfile = async (monorepoItem: Monorepo, logPath: string) => {
-	// TODO: Implement dockerfile-based deployment
-	// This would be similar to buildApplication but for monorepo
-	throw new Error("Dockerfile deployment not yet implemented");
+const deployMonorepoDocker = async (
+	monorepoItem: Monorepo,
+	logPath: string,
+) => {
+	// TODO: Implement docker-based deployment
+	// This would handle docker image deployment for monorepo
+	throw new Error("Docker deployment not yet implemented");
 };
 
-const deployMonorepoCompose = async (monorepoItem: Monorepo, logPath: string) => {
-	// TODO: Implement docker-compose-based deployment  
-	// This would be similar to deployCompose but for monorepo
-	throw new Error("Docker Compose deployment not yet implemented");
-};
-
-const deployMonorepoCommand = async (monorepoItem: Monorepo, logPath: string) => {
-	// TODO: Implement command-based deployment
-	// This would execute the custom command specified in the monorepo
-	throw new Error("Command deployment not yet implemented");
+const deployMonorepoFromSource = async (
+	monorepoItem: Monorepo,
+	logPath: string,
+) => {
+	// TODO: Implement source-based deployment
+	// This would handle git-based deployment for monorepo services
+	// Each service in servicesConfig would be built according to its buildType
+	throw new Error("Source-based deployment not yet implemented");
 };
 
 // Remote deployment functions (for multi-server setups)
