@@ -204,7 +204,7 @@ const createEnvFile = async (compose: ComposeNested) => {
 
 	// Generate environment variables for this compose service
 	const fullProject = await findProjectById(compose.projectId);
-	const context = createComposeContext(compose, compose.domains);
+	const context = createComposeContext(compose);
 	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
 	const generator = new EnvVariableGenerator(context);
 	const generatedVars = generator.generateAll();
@@ -242,7 +242,7 @@ export const getCreateEnvFileCommand = async (compose: ComposeNested) => {
 
 	// Generate environment variables for this compose service
 	const fullProject = await findProjectById(compose.projectId);
-	const context = createComposeContext(compose, compose.domains);
+	const context = createComposeContext(compose);
 	context.project.detailedServices = createDetailedServicesFromProject(fullProject);
 	const generator = new EnvVariableGenerator(context);
 	const generatedVars = generator.generateAll();

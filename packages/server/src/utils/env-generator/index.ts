@@ -114,24 +114,31 @@ export class EnvVariableGenerator {
 	generateAll(): GeneratedEnvVar[] {
 		const envVars: GeneratedEnvVar[] = [];
 
+		console.log('generating project variables');
 		// Generate project-level variables
 		envVars.push(...this.generateProjectVars());
 
+		console.log('generating application variables');
 		// Generate application-level variables
 		envVars.push(...this.generateApplicationVars());
 
+		console.log('generating service variables');
 		// Generate service-level variables
 		envVars.push(...this.generateServiceVars());
 
+		console.log('generating domain variables');
 		// Generate comprehensive services variables (new section)
 		envVars.push(...this.generateServicesVars());
 
+		console.log('generating domain variables');
 		// Generate domain-level variables
 		envVars.push(...this.generateDomainVars());
 
+		console.log('generating network variables');
 		// Generate network-level variables
 		envVars.push(...this.generateNetworkVars());
 
+		console.log('generating system variables');
 		// Generate system-level variables
 		envVars.push(...this.generateSystemVars());
 

@@ -309,16 +309,21 @@ export const prepareEnvironmentVariables = (
 
 			// Replace same-scope variables (enhanced functionality)
 			resolvedValue = resolvedValue.replace(/\$\{\{([^.}]+)\}\}/g, (_, ref) => {
+				console.log(`Resolving variable: ${key} = ${value}`);
+				console.log(`Resolving reference: ${ref}`);
 				// First try to find in service scope
 				if (vars[ref] !== undefined) {
+					console.log(`Found in service scope: ${ref}, value: ${vars[ref]}`);
 					return resolveValue(ref, vars[ref]);
 				}
 				// Second, try project scope if not found in service scope
 				if (projectVars[ref] !== undefined) {
+					console.log(`Found in project scope: ${ref}, value: ${projectVars[ref]}`);
 					return projectVars[ref];
 				}
 				// Third, try generated variables as fallback
 				if (generatedVarsLookup[ref] !== undefined) {
+					console.log(`Found in generated variables: ${ref}, value: ${generatedVarsLookup[ref]}`);
 					return generatedVarsLookup[ref];
 				}
 				throw new Error(`Invalid environment variable: ${ref}`);
@@ -328,6 +333,12 @@ export const prepareEnvironmentVariables = (
 			resolvedVars[key] = resolvedValue;
 			return resolvedValue;
 		};
+
+		console.trace("Resolving environment variables:", {
+			serviceVars,
+			projectVars,
+			generatedVarsLookup,
+		});
 
 		// Resolve all variables
 		for (const [key, value] of Object.entries(vars)) {
@@ -345,6 +356,8 @@ export const prepareEnvironmentVariables = (
 export const parseEnvironmentKeyValuePair = (
 	pair: string,
 ): [string, string] => {
+	console.log(`Parsing environment pair: ${pair}`);
+
 	const [key, ...valueParts] = pair.split("=");
 	if (!key || !valueParts.length) {
 		throw new Error(`Invalid environment variable pair: ${pair}`);

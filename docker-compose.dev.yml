@@ -61,8 +61,8 @@ services:
       - --providers.docker.network=dokploy-network-dev
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --log.level=DEBUG
-      - --accesslog=true
+      - --log.level=ERROR
+      - --accesslog=false
     ports:
       - "8080:8080"  # Traefik dashboard
       - "${TRAEFIK_80_PORT:-80}:80"

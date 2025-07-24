@@ -26,6 +26,8 @@ export const buildCustomDocker = async (
 	} = application;
 	const dockerFilePath = getBuildAppDirectory(application);
 	try {
+		console.log(`Building custom Docker for ${appName}...`);
+		writeStream.write(`Building custom Docker for ${appName}...\n`);
 		const image = `${appName}`;
 
 		const defaultContextPath =
@@ -36,9 +38,16 @@ export const buildCustomDocker = async (
 		const fullProject = await findProjectById(application.projectId);
 		const context = createApplicationContext(application, domains);
 		context.project.detailedServices = createDetailedServicesFromProject(fullProject);
+		console.log(`Context for application ${application.applicationId}:`, context);
 		const generator = new EnvVariableGenerator(context);
 		const generatedVars = generator.generateAll();
 		
+		console.log(`Generated environment variables for application ${application.applicationId}:`, generatedVars);
+		console.log('generating env variables for docker build', {
+			buildArgs,
+			projectEnv: application.project.env,
+			generatedVars,
+		});
 		const args = prepareEnvironmentVariables(
 			buildArgs,
 			application.project.env,
