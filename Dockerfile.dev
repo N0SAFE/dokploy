@@ -39,6 +39,8 @@ COPY . .
 # Build the server package first (required by dokploy app)
 RUN pnpm --filter=@dokploy/server run build
 
+RUN pnpm --filter=dokploy run migration:run
+
 # Set development environment
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
