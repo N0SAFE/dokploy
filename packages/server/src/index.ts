@@ -22,6 +22,7 @@ export * from "./services/github";
 export * from "./services/gitlab";
 export * from "./services/mariadb";
 export * from "./services/mongo";
+export * from "./services/monorepo";
 export * from "./services/mount";
 export * from "./services/mysql";
 export * from "./services/notification";

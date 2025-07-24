@@ -14,6 +14,7 @@ export * from "./github";
 export * from "./gitlab";
 export * from "./mariadb";
 export * from "./mongo";
+export * from "./monorepo";
 export * from "./mount";
 export * from "./mysql";
 export * from "./notification";
