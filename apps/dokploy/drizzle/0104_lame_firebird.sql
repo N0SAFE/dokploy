@@ -1,6 +1,7 @@
 CREATE TYPE "public"."deploymentType" AS ENUM('dockerfile', 'docker-compose', 'command');--> statement-breakpoint
 CREATE TYPE "public"."sourceTypeMonorepo" AS ENUM('git', 'github', 'gitlab', 'bitbucket', 'gitea', 'raw');--> statement-breakpoint
 ALTER TYPE "public"."serviceType" ADD VALUE 'monorepo';--> statement-breakpoint
+ALTER TYPE "public"."domainType" ADD VALUE IF NOT EXISTS 'monorepo';--> statement-breakpoint
 CREATE TABLE "monorepo" (
 	"monorepoId" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
@@ -29,6 +30,7 @@ CREATE TABLE "monorepo" (
 	"previewEnv" text,
 	"previewBuildArgs" text,
 	"previewRequireCollaboratorPermissions" boolean DEFAULT true,
+	"servicesConfig" json DEFAULT '{"services":[]}',
 	"repository" text,
 	"owner" text,
 	"branch" text,
@@ -64,6 +66,7 @@ ALTER TABLE "preview_deployments" ALTER COLUMN "applicationId" DROP NOT NULL;-->
 ALTER TABLE "deployment" ADD COLUMN "monorepoId" text;--> statement-breakpoint
 ALTER TABLE "mount" ADD COLUMN "monorepoId" text;--> statement-breakpoint
 ALTER TABLE "preview_deployments" ADD COLUMN "monorepoId" text;--> statement-breakpoint
+ALTER TABLE "domain" ADD COLUMN IF NOT EXISTS "monorepoId" text;--> statement-breakpoint
 ALTER TABLE "monorepo" ADD CONSTRAINT "monorepo_customGitSSHKeyId_ssh-key_sshKeyId_fk" FOREIGN KEY ("customGitSSHKeyId") REFERENCES "public"."ssh-key"("sshKeyId") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "monorepo" ADD CONSTRAINT "monorepo_projectId_project_projectId_fk" FOREIGN KEY ("projectId") REFERENCES "public"."project"("projectId") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "monorepo" ADD CONSTRAINT "monorepo_githubId_github_githubId_fk" FOREIGN KEY ("githubId") REFERENCES "public"."github"("githubId") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -73,4 +76,5 @@ ALTER TABLE "monorepo" ADD CONSTRAINT "monorepo_giteaId_gitea_giteaId_fk" FOREIG
 ALTER TABLE "monorepo" ADD CONSTRAINT "monorepo_serverId_server_serverId_fk" FOREIGN KEY ("serverId") REFERENCES "public"."server"("serverId") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deployment" ADD CONSTRAINT "deployment_monorepoId_monorepo_monorepoId_fk" FOREIGN KEY ("monorepoId") REFERENCES "public"."monorepo"("monorepoId") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "mount" ADD CONSTRAINT "mount_monorepoId_monorepo_monorepoId_fk" FOREIGN KEY ("monorepoId") REFERENCES "public"."monorepo"("monorepoId") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "preview_deployments" ADD CONSTRAINT "preview_deployments_monorepoId_monorepo_monorepoId_fk" FOREIGN KEY ("monorepoId") REFERENCES "public"."monorepo"("monorepoId") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "preview_deployments" ADD CONSTRAINT "preview_deployments_monorepoId_monorepo_monorepoId_fk" FOREIGN KEY ("monorepoId") REFERENCES "public"."monorepo"("monorepoId") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "domain" ADD CONSTRAINT "domain_monorepoId_monorepo_monorepoId_fk" FOREIGN KEY ("monorepoId") REFERENCES "public"."monorepo"("monorepoId") ON DELETE cascade ON UPDATE no action;
