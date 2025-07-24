@@ -48,23 +48,27 @@ export const monorepo = pgTable("monorepo", {
 	refreshToken: text("refreshToken").$defaultFn(() => nanoid()),
 	webhookToken: text("webhookToken").$defaultFn(() => nanoid()),
 	sourceType: sourceTypeMonorepo("sourceType").notNull().default("github"),
-	deploymentType: deploymentType("deploymentType").notNull().default("dockerfile"),
-	
+	deploymentType: deploymentType("deploymentType")
+		.notNull()
+		.default("dockerfile"),
+
 	// Dockerfile configuration
 	dockerfile: text("dockerfile"),
 	dockerContextPath: text("dockerContextPath"),
 	dockerBuildStage: text("dockerBuildStage"),
 	buildPath: text("buildPath").default("/"),
-	
-	// Docker Compose configuration  
+
+	// Docker Compose configuration
 	composeFile: text("composeFile").default(""),
 	composePath: text("composePath").default("./docker-compose.yml"),
-	
+
 	// Command configuration
 	command: text("command").default(""),
-	
+
 	// Preview deployment settings
-	isPreviewDeploymentsActive: boolean("isPreviewDeploymentsActive").default(false),
+	isPreviewDeploymentsActive: boolean("isPreviewDeploymentsActive").default(
+		false,
+	),
 	previewWildcard: text("previewWildcard"),
 	previewPort: integer("previewPort").default(3000),
 	previewHttps: boolean("previewHttps").notNull().default(false),
@@ -76,8 +80,10 @@ export const monorepo = pgTable("monorepo", {
 	previewLimit: integer("previewLimit").default(3),
 	previewEnv: text("previewEnv"),
 	previewBuildArgs: text("previewBuildArgs"),
-	previewRequireCollaboratorPermissions: boolean("previewRequireCollaboratorPermissions").default(true),
-	
+	previewRequireCollaboratorPermissions: boolean(
+		"previewRequireCollaboratorPermissions",
+	).default(true),
+
 	// Git provider fields
 	repository: text("repository"),
 	owner: text("owner"),
@@ -85,24 +91,24 @@ export const monorepo = pgTable("monorepo", {
 	autoDeploy: boolean("autoDeploy").$defaultFn(() => true),
 	watchPaths: text("watchPaths").array(),
 	enableSubmodules: boolean("enableSubmodules").notNull().default(false),
-	
+
 	// Gitlab
 	gitlabProjectId: integer("gitlabProjectId"),
 	gitlabRepository: text("gitlabRepository"),
 	gitlabOwner: text("gitlabOwner"),
 	gitlabBranch: text("gitlabBranch"),
 	gitlabPathNamespace: text("gitlabPathNamespace"),
-	
+
 	// Bitbucket
 	bitbucketRepository: text("bitbucketRepository"),
 	bitbucketOwner: text("bitbucketOwner"),
 	bitbucketBranch: text("bitbucketBranch"),
-	
+
 	// Gitea
 	giteaRepository: text("giteaRepository"),
 	giteaOwner: text("giteaOwner"),
 	giteaBranch: text("giteaBranch"),
-	
+
 	// Git
 	customGitUrl: text("customGitUrl"),
 	customGitBranch: text("customGitBranch"),
@@ -112,7 +118,7 @@ export const monorepo = pgTable("monorepo", {
 			onDelete: "set null",
 		},
 	),
-	
+
 	triggerType: triggerType("triggerType").default("push"),
 	monorepoStatus: applicationStatus("monorepoStatus").notNull().default("idle"),
 	projectId: text("projectId")
@@ -185,7 +191,9 @@ const createSchema = createInsertSchema(monorepo, {
 	dockerfile: z.string().optional(),
 	composeFile: z.string().optional(),
 	composePath: z.string().min(1),
-	deploymentType: z.enum(["dockerfile", "docker-compose", "command"]).optional(),
+	deploymentType: z
+		.enum(["dockerfile", "docker-compose", "command"])
+		.optional(),
 	watchPaths: z.array(z.string()).optional(),
 	previewPort: z.number().optional(),
 	previewEnv: z.string().optional(),

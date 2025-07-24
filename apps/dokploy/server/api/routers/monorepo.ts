@@ -1,12 +1,12 @@
 import {
+	checkServiceAccess,
 	createMonorepo,
 	findMonorepoById,
 	findMonoreposByProjectId,
+	findProjectById,
 	removeMonorepoById,
 	updateMonorepoById,
 	updateMonorepoToken,
-	checkServiceAccess,
-	findProjectById,
 } from "@dokploy/server";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
@@ -185,10 +185,12 @@ export const monorepoRouter = createTRPCRouter({
 		}),
 
 	move: protectedProcedure
-		.input(z.object({
-			monorepoId: z.string(),
-			targetProjectId: z.string(),
-		}))
+		.input(
+			z.object({
+				monorepoId: z.string(),
+				targetProjectId: z.string(),
+			}),
+		)
 		.mutation(async ({ input, ctx }) => {
 			const monorepo = await findMonorepoById(input.monorepoId);
 			if (

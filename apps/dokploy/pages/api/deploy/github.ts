@@ -554,8 +554,10 @@ export default async function handler(
 				if (monorepoItem?.previewDeployments?.length > previewLimit) {
 					continue;
 				}
-				const previewDeploymentResult =
-					await findPreviewDeploymentByMonorepoId(monorepoItem.monorepoId, prId);
+				const previewDeploymentResult = await findPreviewDeploymentByMonorepoId(
+					monorepoItem.monorepoId,
+					prId,
+				);
 
 				let previewDeploymentId =
 					previewDeploymentResult?.previewDeploymentId || "";
@@ -596,11 +598,11 @@ export default async function handler(
 					},
 				);
 			}
-			
-			return res.status(200).json({ 
+
+			return res.status(200).json({
 				message: "Apps and Monorepos Deployed",
 				appsDeployed: secureApps.length,
-				monoreposDeployed: secureMonorepos.length
+				monoreposDeployed: secureMonorepos.length,
 			});
 		}
 	}

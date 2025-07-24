@@ -26,9 +26,12 @@ export const previewDeployments = pgTable("preview_deployments", {
 		.notNull()
 		.$defaultFn(() => generateAppName("preview"))
 		.unique(),
-	applicationId: text("applicationId").references(() => applications.applicationId, {
-		onDelete: "cascade",
-	}),
+	applicationId: text("applicationId").references(
+		() => applications.applicationId,
+		{
+			onDelete: "cascade",
+		},
+	),
 	monorepoId: text("monorepoId").references(() => monorepo.monorepoId, {
 		onDelete: "cascade",
 	}),
@@ -80,9 +83,6 @@ export const apiCreatePreviewDeployment = createSchema
 		applicationId: z.string().min(1).optional(),
 		monorepoId: z.string().min(1).optional(),
 	})
-	.refine(
-		(data) => data.applicationId || data.monorepoId,
-		{
-			message: "Either applicationId or monorepoId must be provided",
-		},
-	);
+	.refine((data) => data.applicationId || data.monorepoId, {
+		message: "Either applicationId or monorepoId must be provided",
+	});

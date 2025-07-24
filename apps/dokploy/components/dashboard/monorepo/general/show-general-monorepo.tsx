@@ -1,3 +1,8 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -24,11 +29,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/utils/api";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
 
 const updateMonorepoSchema = z.object({
 	name: z.string().min(1, "Name is required"),
@@ -113,10 +113,7 @@ export const ShowGeneralMonorepo = ({ monorepoId }: Props) => {
 				</CardHeader>
 				<CardContent className="p-0">
 					<Form {...form}>
-						<form
-							onSubmit={form.handleSubmit(onSubmit)}
-							className="space-y-6"
-						>
+						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 							<div className="grid grid-cols-1 gap-4">
 								<FormField
 									control={form.control}
@@ -165,7 +162,9 @@ export const ShowGeneralMonorepo = ({ monorepoId }: Props) => {
 												</SelectTrigger>
 												<SelectContent>
 													<SelectItem value="dockerfile">Dockerfile</SelectItem>
-													<SelectItem value="docker-compose">Docker Compose</SelectItem>
+													<SelectItem value="docker-compose">
+														Docker Compose
+													</SelectItem>
 													<SelectItem value="command">Command</SelectItem>
 												</SelectContent>
 											</Select>
@@ -177,7 +176,9 @@ export const ShowGeneralMonorepo = ({ monorepoId }: Props) => {
 
 							{deploymentType === "dockerfile" && (
 								<div className="space-y-4">
-									<h3 className="text-lg font-medium">Dockerfile Configuration</h3>
+									<h3 className="text-lg font-medium">
+										Dockerfile Configuration
+									</h3>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<FormField
 											control={form.control}
@@ -240,7 +241,9 @@ export const ShowGeneralMonorepo = ({ monorepoId }: Props) => {
 
 							{deploymentType === "docker-compose" && (
 								<div className="space-y-4">
-									<h3 className="text-lg font-medium">Docker Compose Configuration</h3>
+									<h3 className="text-lg font-medium">
+										Docker Compose Configuration
+									</h3>
 									<div className="grid grid-cols-1 gap-4">
 										<FormField
 											control={form.control}
@@ -249,7 +252,10 @@ export const ShowGeneralMonorepo = ({ monorepoId }: Props) => {
 												<FormItem>
 													<FormLabel>Compose File Path</FormLabel>
 													<FormControl>
-														<Input placeholder="./docker-compose.yml" {...field} />
+														<Input
+															placeholder="./docker-compose.yml"
+															{...field}
+														/>
 													</FormControl>
 													<FormMessage />
 												</FormItem>

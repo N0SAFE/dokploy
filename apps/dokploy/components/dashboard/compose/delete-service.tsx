@@ -92,7 +92,7 @@ export const DeleteService = ({ id, type }: Props) => {
 		const expectedName = `${data?.name}/${data?.appName}`;
 		if (formData.projectName === expectedName) {
 			const { deleteVolumes } = formData;
-			
+
 			try {
 				// Use type assertion to handle the union type
 				let result;
@@ -101,7 +101,10 @@ export const DeleteService = ({ id, type }: Props) => {
 						result = await (mutateAsync as any)({ mongoId: id, deleteVolumes });
 						break;
 					case "postgres":
-						result = await (mutateAsync as any)({ postgresId: id, deleteVolumes });
+						result = await (mutateAsync as any)({
+							postgresId: id,
+							deleteVolumes,
+						});
 						break;
 					case "redis":
 						result = await (mutateAsync as any)({ redisId: id, deleteVolumes });
@@ -110,16 +113,28 @@ export const DeleteService = ({ id, type }: Props) => {
 						result = await (mutateAsync as any)({ mysqlId: id, deleteVolumes });
 						break;
 					case "mariadb":
-						result = await (mutateAsync as any)({ mariadbId: id, deleteVolumes });
+						result = await (mutateAsync as any)({
+							mariadbId: id,
+							deleteVolumes,
+						});
 						break;
 					case "application":
-						result = await (mutateAsync as any)({ applicationId: id, deleteVolumes });
+						result = await (mutateAsync as any)({
+							applicationId: id,
+							deleteVolumes,
+						});
 						break;
 					case "compose":
-						result = await (mutateAsync as any)({ composeId: id, deleteVolumes });
+						result = await (mutateAsync as any)({
+							composeId: id,
+							deleteVolumes,
+						});
 						break;
 					case "monorepo":
-						result = await (mutateAsync as any)({ monorepoId: id, deleteVolumes });
+						result = await (mutateAsync as any)({
+							monorepoId: id,
+							deleteVolumes,
+						});
 						break;
 				}
 				push(`/dashboard/project/${result?.projectId}`);

@@ -13,9 +13,9 @@ import { type ReactElement, useEffect, useState } from "react";
 import { toast } from "sonner";
 import superjson from "superjson";
 import { DeleteService } from "@/components/dashboard/compose/delete-service";
-import { ShowGeneralMonorepo } from "@/components/dashboard/monorepo/general/show-general-monorepo";
 import { ContainerFreeMonitoring } from "@/components/dashboard/monitoring/free/container/show-free-container-monitoring";
 import { ContainerPaidMonitoring } from "@/components/dashboard/monitoring/paid/container/show-paid-container-monitoring";
+import { ShowGeneralMonorepo } from "@/components/dashboard/monorepo/general/show-general-monorepo";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { BreadcrumbSidebar } from "@/components/shared/breadcrumb-sidebar";
 import { StatusTooltip } from "@/components/shared/status-tooltip";
@@ -40,7 +40,7 @@ import { api } from "@/utils/api";
 
 type TabState =
 	| "general"
-	| "environment" 
+	| "environment"
 	| "deployments"
 	| "domains"
 	| "logs"
@@ -145,10 +145,7 @@ const Monorepo = (
 										</TooltipContent>
 									</Tooltip>
 								</TooltipProvider>
-								<DeleteService
-									id={monorepoId}
-									type="monorepo"
-								/>
+								<DeleteService id={monorepoId} type="monorepo" />
 							</div>
 						</CardHeader>
 					</div>

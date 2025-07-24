@@ -126,7 +126,8 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 				<DialogHeader>
 					<DialogTitle>Create Monorepo</DialogTitle>
 					<DialogDescription>
-						Create a monorepo to manage multiple applications in a single repository
+						Create a monorepo to manage multiple applications in a single
+						repository
 					</DialogDescription>
 				</DialogHeader>
 				{isError && <AlertBlock type="error">{error?.message}</AlertBlock>}
@@ -242,7 +243,9 @@ export const AddMonorepo = ({ projectId, projectName }: Props) => {
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="dockerfile">Dockerfile</SelectItem>
-											<SelectItem value="docker-compose">Docker Compose</SelectItem>
+											<SelectItem value="docker-compose">
+												Docker Compose
+											</SelectItem>
 											<SelectItem value="command">Command</SelectItem>
 										</SelectContent>
 									</Select>

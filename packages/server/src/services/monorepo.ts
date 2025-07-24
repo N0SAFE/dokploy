@@ -257,7 +257,9 @@ export const deployMonorepo = async ({
 				await deployMonorepoCommand(monorepoItem, deployment.logPath);
 				break;
 			default:
-				throw new Error(`Unsupported deployment type: ${monorepoItem.deploymentType}`);
+				throw new Error(
+					`Unsupported deployment type: ${monorepoItem.deploymentType}`,
+				);
 		}
 
 		await updateMonorepoById(monorepoId, {
@@ -289,19 +291,28 @@ export const rebuildMonorepo = async ({
 };
 
 // Deployment type specific functions
-const deployMonorepoDockerfile = async (monorepoItem: Monorepo, logPath: string) => {
+const deployMonorepoDockerfile = async (
+	monorepoItem: Monorepo,
+	logPath: string,
+) => {
 	// TODO: Implement dockerfile-based deployment
 	// This would be similar to buildApplication but for monorepo
 	throw new Error("Dockerfile deployment not yet implemented");
 };
 
-const deployMonorepoCompose = async (monorepoItem: Monorepo, logPath: string) => {
-	// TODO: Implement docker-compose-based deployment  
+const deployMonorepoCompose = async (
+	monorepoItem: Monorepo,
+	logPath: string,
+) => {
+	// TODO: Implement docker-compose-based deployment
 	// This would be similar to deployCompose but for monorepo
 	throw new Error("Docker Compose deployment not yet implemented");
 };
 
-const deployMonorepoCommand = async (monorepoItem: Monorepo, logPath: string) => {
+const deployMonorepoCommand = async (
+	monorepoItem: Monorepo,
+	logPath: string,
+) => {
 	// TODO: Implement command-based deployment
 	// This would execute the custom command specified in the monorepo
 	throw new Error("Command deployment not yet implemented");

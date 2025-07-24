@@ -156,14 +156,14 @@ export const createPreviewDeployment = async (
 ) => {
 	if (schema.applicationId) {
 		return await createApplicationPreviewDeployment(schema);
-	} else if (schema.monorepoId) {
-		return await createMonorepoPreviewDeployment(schema);
-	} else {
-		throw new TRPCError({
-			code: "BAD_REQUEST",
-			message: "Either applicationId or monorepoId must be provided",
-		});
 	}
+	if (schema.monorepoId) {
+		return await createMonorepoPreviewDeployment(schema);
+	}
+	throw new TRPCError({
+		code: "BAD_REQUEST",
+		message: "Either applicationId or monorepoId must be provided",
+	});
 };
 
 const createApplicationPreviewDeployment = async (
