@@ -4,6 +4,7 @@ import {
 	createSecurityBlockedComment,
 	findGithubById,
 	findPreviewDeploymentByApplicationId,
+	findPreviewDeploymentByMonorepoId,
 	findPreviewDeploymentsByPullRequestId,
 	IS_CLOUD,
 	removePreviewDeployment,
@@ -13,7 +14,7 @@ import { Webhooks } from "@octokit/webhooks";
 import { and, eq } from "drizzle-orm";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/server/db";
-import { applications, compose, github } from "@/server/db/schema";
+import { applications, compose, github, monorepo } from "@/server/db/schema";
 import type { DeploymentJob } from "@/server/queues/queue-types";
 import { myQueue } from "@/server/queues/queueSetup";
 import { deploy } from "@/server/utils/deploy";
@@ -376,8 +377,23 @@ export default async function handler(
 				},
 			});
 
+			const monorepos = await db.query.monorepo.findMany({
+				where: and(
+					eq(monorepo.sourceType, "github"),
+					eq(monorepo.repository, repository),
+					eq(monorepo.branch, branch),
+					eq(monorepo.isPreviewDeploymentsActive, true),
+					eq(monorepo.owner, owner),
+					eq(monorepo.githubId, githubResult.githubId),
+				),
+				with: {
+					previewDeployments: true,
+				},
+			});
+
 			// SECURITY: Check collaborator permissions per application setting
 			const secureApps: typeof apps = [];
+			const secureMonorepos: typeof monorepos = [];
 			const blockedApps: string[] = [];
 			let userPermission: string | null = null;
 
@@ -421,6 +437,49 @@ export default async function handler(
 					);
 				}
 				secureApps.push(app);
+			}
+
+			// Same security checks for monorepos
+			for (const monorepoItem of monorepos) {
+				// If the monorepo requires collaborator permissions, verify them
+				if (monorepoItem.previewRequireCollaboratorPermissions !== false) {
+					try {
+						const githubProvider = await findGithubById(githubResult.githubId);
+						const { hasWriteAccess, permission } =
+							await checkUserRepositoryPermissions(
+								githubProvider,
+								owner,
+								repository,
+								prAuthor,
+							);
+
+						userPermission = permission; // Store permission for comment
+
+						if (!hasWriteAccess) {
+							console.warn(
+								`🚨 SECURITY: Blocked preview deployment for monorepo ${monorepoItem.name} from unauthorized user ${prAuthor} on ${owner}/${repository}. Permission: ${permission || "none"}`,
+							);
+							blockedApps.push(monorepoItem.name);
+							continue;
+						}
+
+						console.log(
+							`✅ SECURITY: Preview deployment authorized for monorepo ${monorepoItem.name} from user ${prAuthor} on ${owner}/${repository}. Permission: ${permission}`,
+						);
+					} catch (error) {
+						console.error(
+							`Error validating PR author permissions for monorepo ${monorepoItem.name}:`,
+							error,
+						);
+						blockedApps.push(monorepoItem.name);
+						continue; // Skip this monorepo on error
+					}
+				} else {
+					console.warn(
+						`⚠️  SECURITY: Preview deployment for monorepo ${monorepoItem.name} allows deployment from any PR author (security check disabled)`,
+					);
+				}
+				secureMonorepos.push(monorepoItem);
 			}
 
 			const prBranch = githubBody?.pull_request?.head?.ref;
@@ -488,7 +547,61 @@ export default async function handler(
 					},
 				);
 			}
-			return res.status(200).json({ message: "Apps Deployed" });
+
+			// Handle monorepo preview deployments
+			for (const monorepoItem of secureMonorepos) {
+				const previewLimit = monorepoItem?.previewLimit || 0;
+				if (monorepoItem?.previewDeployments?.length > previewLimit) {
+					continue;
+				}
+				const previewDeploymentResult =
+					await findPreviewDeploymentByMonorepoId(monorepoItem.monorepoId, prId);
+
+				let previewDeploymentId =
+					previewDeploymentResult?.previewDeploymentId || "";
+
+				if (!previewDeploymentResult) {
+					const previewDeployment = await createPreviewDeployment({
+						monorepoId: monorepoItem.monorepoId as string,
+						branch: prBranch,
+						pullRequestId: prId,
+						pullRequestNumber: prNumber,
+						pullRequestTitle: prTitle,
+						pullRequestURL: prURL,
+					});
+					previewDeploymentId = previewDeployment.previewDeploymentId;
+				}
+
+				const jobData: DeploymentJob = {
+					monorepoId: monorepoItem.monorepoId as string,
+					titleLog: "Monorepo Preview Deployment",
+					descriptionLog: `Hash: ${deploymentHash}`,
+					type: "deploy",
+					applicationType: "monorepo-preview",
+					server: !!monorepoItem.serverId,
+					previewDeploymentId,
+				};
+
+				if (IS_CLOUD && monorepoItem.serverId) {
+					jobData.serverId = monorepoItem.serverId;
+					await deploy(jobData);
+					continue;
+				}
+				await myQueue.add(
+					"deployments",
+					{ ...jobData },
+					{
+						removeOnComplete: true,
+						removeOnFail: true,
+					},
+				);
+			}
+			
+			return res.status(200).json({ 
+				message: "Apps and Monorepos Deployed",
+				appsDeployed: secureApps.length,
+				monoreposDeployed: secureMonorepos.length
+			});
 		}
 	}
 

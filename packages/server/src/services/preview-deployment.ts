@@ -18,6 +18,7 @@ import { findApplicationById } from "./application";
 import { removeDeploymentsByPreviewDeploymentId } from "./deployment";
 import { createDomain } from "./domain";
 import { type Github, getIssueComment } from "./github";
+import { findMonorepoById } from "./monorepo";
 
 export type PreviewDeployment = typeof previewDeployments.$inferSelect;
 
@@ -153,7 +154,22 @@ export const findPreviewDeploymentsByApplicationId = async (
 export const createPreviewDeployment = async (
 	schema: typeof apiCreatePreviewDeployment._type,
 ) => {
-	const application = await findApplicationById(schema.applicationId);
+	if (schema.applicationId) {
+		return await createApplicationPreviewDeployment(schema);
+	} else if (schema.monorepoId) {
+		return await createMonorepoPreviewDeployment(schema);
+	} else {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: "Either applicationId or monorepoId must be provided",
+		});
+	}
+};
+
+const createApplicationPreviewDeployment = async (
+	schema: typeof apiCreatePreviewDeployment._type,
+) => {
+	const application = await findApplicationById(schema.applicationId!);
 	const appName = `preview-${application.appName}-${generatePassword(6)}`;
 
 	const org = await db.query.organization.findFirst({
@@ -228,6 +244,88 @@ export const createPreviewDeployment = async (
 	return previewDeployment;
 };
 
+const createMonorepoPreviewDeployment = async (
+	schema: typeof apiCreatePreviewDeployment._type,
+) => {
+	const monorepoItem = await findMonorepoById(schema.monorepoId!);
+	const appName = `preview-${monorepoItem.appName}-${generatePassword(6)}`;
+
+	const org = await db.query.organization.findFirst({
+		where: eq(organization.id, monorepoItem.project.organizationId),
+	});
+	const generateDomain = await generateWildcardDomain(
+		monorepoItem.previewWildcard || "*.traefik.me",
+		appName,
+		monorepoItem.server?.ipAddress || "",
+		org?.ownerId || "",
+	);
+
+	const octokit = authGithub(monorepoItem?.github as Github);
+
+	const runningComment = getIssueComment(
+		monorepoItem.name,
+		"initializing",
+		`${monorepoItem.previewHttps ? "https" : "http"}://${generateDomain}`,
+	);
+
+	const issue = await octokit.rest.issues.createComment({
+		owner: monorepoItem?.owner || "",
+		repo: monorepoItem?.repository || "",
+		issue_number: Number.parseInt(schema.pullRequestNumber),
+		body: `### Dokploy Monorepo Preview Deployment\n\n${runningComment}`,
+	});
+
+	const previewDeployment = await db
+		.insert(previewDeployments)
+		.values({
+			...schema,
+			appName: appName,
+			pullRequestCommentId: `${issue.data.id}`,
+		})
+		.returning()
+		.then((value) => value[0]);
+
+	if (!previewDeployment) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: "Error creating the monorepo preview deployment",
+		});
+	}
+
+	const newDomain = await createDomain({
+		host: generateDomain,
+		path: monorepoItem.previewPath,
+		port: monorepoItem.previewPort,
+		https: monorepoItem.previewHttps,
+		certificateType: monorepoItem.previewCertificateType,
+		customCertResolver: monorepoItem.previewCustomCertResolver,
+		domainType: "preview",
+		previewDeploymentId: previewDeployment.previewDeploymentId,
+	});
+
+	// For monorepo, we need to create a temporary application-like object for domain management
+	const tempAppForDomain = {
+		...monorepoItem,
+		appName: appName,
+	};
+
+	await manageDomain(tempAppForDomain, newDomain);
+
+	await db
+		.update(previewDeployments)
+		.set({
+			domainId: newDomain.domainId,
+		})
+		.where(
+			eq(
+				previewDeployments.previewDeploymentId,
+				previewDeployment.previewDeploymentId,
+			),
+		);
+
+	return previewDeployment;
+};
+
 export const findPreviewDeploymentsByPullRequestId = async (
 	pullRequestId: string,
 ) => {
@@ -245,6 +343,20 @@ export const findPreviewDeploymentByApplicationId = async (
 	const previewDeploymentResult = await db.query.previewDeployments.findFirst({
 		where: and(
 			eq(previewDeployments.applicationId, applicationId),
+			eq(previewDeployments.pullRequestId, pullRequestId),
+		),
+	});
+
+	return previewDeploymentResult;
+};
+
+export const findPreviewDeploymentByMonorepoId = async (
+	monorepoId: string,
+	pullRequestId: string,
+) => {
+	const previewDeploymentResult = await db.query.previewDeployments.findFirst({
+		where: and(
+			eq(previewDeployments.monorepoId, monorepoId),
 			eq(previewDeployments.pullRequestId, pullRequestId),
 		),
 	});
