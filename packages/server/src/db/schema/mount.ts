@@ -117,6 +117,7 @@ const createSchema = createInsertSchema(mounts, {
 			"mongo",
 			"redis",
 			"compose",
+			"monorepo",
 		])
 		.default("application"),
 });

@@ -312,6 +312,7 @@ export const projectRouter = createTRPCRouter({
 								"mysql",
 								"redis",
 								"compose",
+								"monorepo",
 							]),
 						}),
 					)
