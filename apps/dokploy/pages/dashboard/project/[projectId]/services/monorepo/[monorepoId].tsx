@@ -15,6 +15,7 @@ import superjson from "superjson";
 import { DeleteService } from "@/components/dashboard/compose/delete-service";
 import { ContainerFreeMonitoring } from "@/components/dashboard/monitoring/free/container/show-free-container-monitoring";
 import { ContainerPaidMonitoring } from "@/components/dashboard/monitoring/paid/container/show-paid-container-monitoring";
+import { ShowDomainsMonorepo } from "@/components/dashboard/monorepo/domains/show-domains";
 import { ShowGeneralMonorepo } from "@/components/dashboard/monorepo/general/show-general-monorepo";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { BreadcrumbSidebar } from "@/components/shared/breadcrumb-sidebar";
@@ -117,7 +118,7 @@ const Monorepo = (
 										variant="secondary"
 										className="text-xs font-normal max-w-fit"
 									>
-										{data?.deploymentType}
+										{data?.sourceType || "github"}
 									</Badge>
 									{data?.serverId && (
 										<Badge variant="outline">Remote Server</Badge>
@@ -205,21 +206,7 @@ const Monorepo = (
 						</TabsContent>
 
 						<TabsContent value="domains">
-							<Card className="bg-sidebar p-2.5 rounded-xl">
-								<div className="rounded-xl bg-background shadow-md p-6">
-									<CardHeader className="p-0 mb-4">
-										<CardTitle>Domains</CardTitle>
-										<CardDescription>
-											Configure domains for your monorepo
-										</CardDescription>
-									</CardHeader>
-									<CardContent className="p-0">
-										<div className="text-muted-foreground">
-											Domain management will be implemented here.
-										</div>
-									</CardContent>
-								</div>
-							</Card>
+							<ShowDomainsMonorepo monorepoId={monorepoId} />
 						</TabsContent>
 
 						<TabsContent value="logs">

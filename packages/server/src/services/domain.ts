@@ -112,6 +112,17 @@ export const findDomainsByComposeId = async (composeId: string) => {
 	return domainsArray;
 };
 
+export const findDomainsByMonorepoId = async (monorepoId: string) => {
+	const domainsArray = await db.query.domains.findMany({
+		where: eq(domains.monorepoId, monorepoId),
+		with: {
+			monorepo: true,
+		},
+	});
+
+	return domainsArray;
+};
+
 export const updateDomainById = async (
 	domainId: string,
 	domainData: Partial<Domain>,

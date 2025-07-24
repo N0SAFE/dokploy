@@ -5,6 +5,8 @@ import {
 	findDomainById,
 	findDomainsByApplicationId,
 	findDomainsByComposeId,
+	findDomainsByMonorepoId,
+	findMonorepoById,
 	findOrganizationById,
 	findPreviewDeploymentById,
 	findServerById,
@@ -22,6 +24,7 @@ import {
 	apiCreateDomain,
 	apiFindCompose,
 	apiFindDomain,
+	apiFindMonorepo,
 	apiFindOneApplication,
 	apiUpdateDomain,
 } from "@/server/db/schema";
@@ -50,6 +53,17 @@ export const domainRouter = createTRPCRouter({
 						throw new TRPCError({
 							code: "UNAUTHORIZED",
 							message: "You are not authorized to access this application",
+						});
+					}
+				} else if (input.domainType === "monorepo" && input.monorepoId) {
+					const monorepo = await findMonorepoById(input.monorepoId);
+					if (
+						monorepo.project.organizationId !==
+						ctx.session.activeOrganizationId
+					) {
+						throw new TRPCError({
+							code: "UNAUTHORIZED",
+							message: "You are not authorized to access this monorepo",
 						});
 					}
 				}
@@ -90,6 +104,61 @@ export const domainRouter = createTRPCRouter({
 				});
 			}
 			return await findDomainsByComposeId(input.composeId);
+		}),
+
+	byMonorepoId: protectedProcedure
+		.input(apiFindMonorepo)
+		.query(async ({ input, ctx }) => {
+			const monorepo = await findMonorepoById(input.monorepoId);
+			if (monorepo.project.organizationId !== ctx.session.activeOrganizationId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to access this monorepo",
+				});
+			}
+			return await findDomainsByMonorepoId(input.monorepoId);
+		}),
+
+	createForMonorepo: protectedProcedure
+		.input(
+			z.object({
+				monorepoId: z.string(),
+				host: z.string(),
+				path: z.string().default("/"),
+				port: z.number().optional(),
+				https: z.boolean().default(false),
+				certificateType: z.enum(["none", "letsencrypt", "custom"]).default("none"),
+				customCertResolver: z.string().optional(),
+				serviceName: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			try {
+				const monorepo = await findMonorepoById(input.monorepoId);
+				if (
+					monorepo.project.organizationId !==
+					ctx.session.activeOrganizationId
+				) {
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "You are not authorized to access this monorepo",
+					});
+				}
+
+				return await createDomain({
+					...input,
+					domainType: "monorepo",
+				});
+			} catch (error) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message:
+						error instanceof Error
+							? error.message
+							: "Error creating the domain",
+					cause: error,
+				});
+			}
 		}),
 	generateDomain: protectedProcedure
 		.input(z.object({ appName: z.string(), serverId: z.string().optional() }))
@@ -216,6 +285,16 @@ export const domainRouter = createTRPCRouter({
 					throw new TRPCError({
 						code: "UNAUTHORIZED",
 						message: "You are not authorized to access this compose",
+					});
+				}
+			} else if (domain.monorepoId) {
+				const monorepo = await findMonorepoById(domain.monorepoId);
+				if (
+					monorepo.project.organizationId !== ctx.session.activeOrganizationId
+				) {
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "You are not authorized to access this monorepo",
 					});
 				}
 			}
