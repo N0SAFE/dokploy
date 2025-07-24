@@ -5,7 +5,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 RUN corepack prepare pnpm@9.12.0 --activate
 
-# Install development dependencies
+# Install development dependencies and utilities
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
@@ -13,6 +13,14 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     procps \
+    postgresql-client \
+    unzip \
+    zip \
+    apache2-utils \
+    iproute2 \
+    rsync \
+    git-lfs \
+    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -35,8 +43,27 @@ RUN pnpm --filter=@dokploy/server run build
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install PostgreSQL client for database connection testing
-RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
+# Install Docker CLI for development container management
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && rm get-docker.sh
+
+# Install development tools similar to production
+RUN curl https://rclone.org/install.sh | bash
+
+# Install Nixpacks and tsx for development builds
+ARG NIXPACKS_VERSION=1.39.0
+RUN curl -sSL https://nixpacks.com/install.sh -o install.sh \
+    && chmod +x install.sh \
+    && ./install.sh \
+    && rm install.sh
+
+# Install tsx globally for development
+RUN pnpm install -g tsx
+
+# Install buildpacks
+COPY --from=buildpacksio/pack:0.35.0 /usr/local/bin/pack /usr/local/bin/pack
+
+# Ensure docker group exists and set proper permissions for docker socket access
+RUN groupadd -f docker
 
 # Copy startup script
 COPY docker/dev-start.sh /usr/local/bin/dev-start.sh
