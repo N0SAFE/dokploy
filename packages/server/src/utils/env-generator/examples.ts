@@ -1,8 +1,8 @@
-import { 
+import {
+	generateProjectEnvironmentVariables,
+	getQuickReferenceVariables,
 	prepareApplicationEnvironmentVariables,
 	prepareComposeEnvironmentVariables,
-	generateProjectEnvironmentVariables,
-	getQuickReferenceVariables
 } from "./integration";
 
 /**
@@ -15,11 +15,14 @@ export const deployApplicationWithEnhancedEnv = async (application: any) => {
 	// Get environment variables with generated ones included
 	const envVars = await prepareApplicationEnvironmentVariables(application, {
 		includeGenerated: true,
-		categories: ["project", "application", "domain", "network", "system"]
+		categories: ["project", "application", "domain", "network", "system"],
 	});
 
-	console.log("Generated environment variables for application:", application.appName);
-	envVars.forEach(envVar => console.log(`  ${envVar}`));
+	console.log(
+		"Generated environment variables for application:",
+		application.appName,
+	);
+	envVars.forEach((envVar) => console.log(`  ${envVar}`));
 
 	// Environment variables will include:
 	// - PROJECT_GENERATED_URL=https://my-project.example.com
@@ -37,24 +40,35 @@ export const deployApplicationWithEnhancedEnv = async (application: any) => {
 export const deployComposeWithEnhancedEnv = async (compose: any) => {
 	const envVars = await prepareComposeEnvironmentVariables(compose, {
 		includeGenerated: true,
-		categories: ["project", "service", "network"]
+		categories: ["project", "service", "network"],
 	});
 
 	console.log("Generated environment variables for compose:", compose.appName);
-	envVars.forEach(envVar => console.log(`  ${envVar}`));
+	envVars.forEach((envVar) => console.log(`  ${envVar}`));
 
 	return envVars;
 };
 
 // Example 3: Full project environment generation
-export const generateFullProjectEnvironment = async (project: any, applications: any[], services: any[]) => {
+export const generateFullProjectEnvironment = async (
+	project: any,
+	applications: any[],
+	services: any[],
+) => {
 	const envData = await generateProjectEnvironmentVariables(
 		project,
 		applications,
 		services,
 		{
-			categories: ["project", "application", "service", "domain", "network", "system"]
-		}
+			categories: [
+				"project",
+				"application",
+				"service",
+				"domain",
+				"network",
+				"system",
+			],
+		},
 	);
 
 	console.log("Project-level variables:");
@@ -84,16 +98,16 @@ export const generateFullProjectEnvironment = async (project: any, applications:
 // Example 4: Quick reference variables
 export const getQuickApplicationUrls = (context: any) => {
 	const quickRefs = getQuickReferenceVariables(context);
-	
+
 	console.log("Quick reference variables:");
 	console.log(`  Main App URL: ${quickRefs.appUrl}`);
 	console.log(`  Project URL: ${quickRefs.projectUrl}`);
-	
+
 	console.log("  Database Hosts:");
 	Object.entries(quickRefs.databaseHosts).forEach(([name, host]) => {
 		console.log(`    ${name}: ${host}`);
 	});
-	
+
 	console.log("  Service URLs:");
 	Object.entries(quickRefs.serviceUrls).forEach(([name, url]) => {
 		console.log(`    ${name}: ${url}`);
@@ -105,45 +119,48 @@ export const getQuickApplicationUrls = (context: any) => {
 // Example 5: Docker Compose integration
 export const generateDockerComposeEnv = async (application: any) => {
 	const envVars = await prepareApplicationEnvironmentVariables(application, {
-		includeGenerated: true
+		includeGenerated: true,
 	});
 
 	// Convert to .env file format
-	const envFileContent = envVars.join('\n');
-	
+	const envFileContent = envVars.join("\n");
+
 	// Or convert to Docker Compose environment format
-	const dockerComposeEnv = envVars.reduce((acc, envVar) => {
-		const [key, value] = envVar.split('=');
-		if (key && value) {
-			acc[key] = value;
-		}
-		return acc;
-	}, {} as Record<string, string>);
+	const dockerComposeEnv = envVars.reduce(
+		(acc, envVar) => {
+			const [key, value] = envVar.split("=");
+			if (key && value) {
+				acc[key] = value;
+			}
+			return acc;
+		},
+		{} as Record<string, string>,
+	);
 
 	return {
 		envFileContent,
-		dockerComposeEnv
+		dockerComposeEnv,
 	};
 };
 
 // Example 6: Template variable replacement
 export const replaceTemplateVariables = async (
 	template: string,
-	application: any
+	application: any,
 ): Promise<string> => {
 	const envVars = await prepareApplicationEnvironmentVariables(application, {
-		includeGenerated: true
+		includeGenerated: true,
 	});
 
 	let result = template;
 
 	// Replace environment variables in template
-	envVars.forEach(envVar => {
-		const [key, value] = envVar.split('=');
+	envVars.forEach((envVar) => {
+		const [key, value] = envVar.split("=");
 		if (key && value) {
 			// Support both ${VARIABLE} and ${{VARIABLE}} syntax
-			result = result.replace(new RegExp(`\\$\\{\\{${key}\\}\\}`, 'g'), value);
-			result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+			result = result.replace(new RegExp(`\\$\\{\\{${key}\\}\\}`, "g"), value);
+			result = result.replace(new RegExp(`\\$\\{${key}\\}`, "g"), value);
 		}
 	});
 

@@ -4,8 +4,8 @@ import { paths } from "@dokploy/server/constants";
 import type { apiGitlabTestConnection } from "@dokploy/server/db/schema";
 import type { Compose } from "@dokploy/server/services/compose";
 import {
-	type Gitlab,
 	findGitlabById,
+	type Gitlab,
 	updateGitlab,
 } from "@dokploy/server/services/gitlab";
 import type { InferResultType } from "@dokploy/server/types/with";

@@ -1,3 +1,4 @@
+import { Layers, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,7 +9,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { api } from "@/utils/api";
-import { Layers, Loader2 } from "lucide-react";
 import { type ApplicationList, columns } from "./columns";
 import { DataTable } from "./data-table";
 

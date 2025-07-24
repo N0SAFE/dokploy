@@ -6,8 +6,8 @@ import {
 	generateFileMounts,
 	generateVolumeMounts,
 } from "../docker/utils";
-import { getRemoteDocker } from "../servers/remote-docker";
 import { prepareDatabaseEnvironmentVariables } from "../env-generator/integration";
+import { getRemoteDocker } from "../servers/remote-docker";
 
 export type MariadbNested = InferResultType<
 	"mariadb",
@@ -56,8 +56,8 @@ export const buildMariadb = async (mariadb: MariadbNested) => {
 		"mariadb",
 		{
 			includeGenerated: true,
-			categories: ["service", "network", "system"]
-		}
+			categories: ["service", "network", "system"],
+		},
 	);
 	const volumesMount = generateVolumeMounts(mounts);
 	const bindsMount = generateBindMounts(mounts);

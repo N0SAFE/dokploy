@@ -150,8 +150,8 @@ export const mechanizeDockerContainer = async (
 		application,
 		{
 			includeGenerated: true,
-			categories: ["project", "application", "domain", "network", "system"]
-		}
+			categories: ["project", "application", "domain", "network", "system"],
+		},
 	);
 
 	const image = getImageName(application);
